@@ -1,8 +1,5 @@
 import { NextRequest } from 'next/server'
 
-// В продакшене используем Vercel Blob, локально — файловую систему
-const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN
-
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
@@ -10,30 +7,35 @@ export async function POST(request: NextRequest) {
   const file = formData.get('file') as unknown as File | null
   if (!file) return Response.json({ message: 'Нет файла' }, { status: 400 })
 
-  const filename = `${Date.now()}-${(file as any).name || 'image'}`
+  const originalName = (file as any).name || 'image'
+  const filename = `${Date.now()}-${originalName}`
 
-  if (useBlob) {
-    // Vercel Blob
+  const useSupabase = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (useSupabase) {
+    const { createClient } = await import('@supabase/supabase-js')
+    const supabaseUrl = process.env.SUPABASE_URL as string
+    const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY as string) || (process.env.SUPABASE_ANON_KEY as string)
+    const bucket = process.env.SUPABASE_BUCKET || 'public-images'
+
+    const supabase = createClient(supabaseUrl, supabaseKey)
     const arrayBuffer = await file.arrayBuffer()
-    const res = await fetch('https://api.vercel.com/v2/blob/upload', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
-        'x-api-version': '2',
-        'content-type': 'application/octet-stream',
-        'x-vercel-filename': filename,
-      },
-      body: Buffer.from(arrayBuffer),
+    const filePath = `${new Date().toISOString().slice(0, 10)}/${filename}`
+
+    const { error } = await supabase.storage.from(bucket).upload(filePath, Buffer.from(arrayBuffer), {
+      contentType: (file as any).type || 'application/octet-stream',
+      upsert: false,
     })
-    if (!res.ok) {
-      const t = await res.text()
-      return Response.json({ message: `Blob error: ${t}` }, { status: 500 })
+
+    if (error) {
+      return Response.json({ message: `Supabase upload error: ${error.message}` }, { status: 500 })
     }
-    const data = await res.json()
-    return Response.json({ url: data.url as string })
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath)
+    return Response.json({ url: data.publicUrl })
   }
 
-  // Локально сохраняем в public/uploads
+  // Локально сохраняем в public/uploads (dev)
   const { createWriteStream, mkdirSync, existsSync } = await import('fs')
   const { join } = await import('path')
   const arrayBuffer = await file.arrayBuffer()
