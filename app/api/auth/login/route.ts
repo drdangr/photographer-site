@@ -1,7 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getIronSession } from 'iron-session'
-import { cookies } from 'next/headers'
-import { sessionOptions } from '@/lib/session'
+import { getServerSession } from '@/lib/session'
 import bcrypt from 'bcryptjs'
 
 export async function POST(request: Request) {
@@ -14,7 +12,7 @@ export async function POST(request: Request) {
   const ok = await bcrypt.compare(password, user.password)
   if (!ok) return Response.json({ message: 'Неверные учетные данные' }, { status: 401 })
 
-  const session = await getIronSession(cookies(), sessionOptions)
+  const session = await getServerSession()
   session.userId = user.id
   session.email = user.email
   await session.save()
