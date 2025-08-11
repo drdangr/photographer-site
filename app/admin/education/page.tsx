@@ -73,7 +73,11 @@ async function saveEducation(formData: FormData) {
   const price = priceRaw ? Number(priceRaw) : null
   const currency = String(formData.get('currency') || '') || null
   if (!title || !slug) return
-  await prisma.educationOffering.create({ data: { kind, title, slug, description, duration, price, currency } })
+  await prisma.educationOffering.upsert({
+    where: { slug },
+    update: { kind, title, description, duration, price, currency },
+    create: { kind, title, slug, description, duration, price, currency },
+  })
 }
 
 async function updateEducation(formData: FormData) {

@@ -102,7 +102,8 @@ async function deletePhoto(formData: FormData) {
   'use server'
   const photoId = Number(formData.get('photoId'))
   if (!photoId) return
-  await prisma.photo.delete({ where: { id: photoId } })
+  // Удаляем без ошибки, даже если записи уже нет
+  await prisma.photo.deleteMany({ where: { id: photoId } })
 }
 
 

@@ -57,7 +57,11 @@ async function saveService(formData: FormData) {
   const price = priceRaw ? Number(priceRaw) : null
   const currency = String(formData.get('currency') || '') || null
   if (!title || !slug) return
-  await prisma.serviceOffering.create({ data: { title, slug, description, price, currency } })
+  await prisma.serviceOffering.upsert({
+    where: { slug },
+    update: { title, description, price, currency },
+    create: { title, slug, description, price, currency },
+  })
 }
 
 async function updateService(formData: FormData) {
