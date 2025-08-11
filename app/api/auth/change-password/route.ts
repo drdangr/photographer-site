@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabaseServer'
 import bcrypt from 'bcryptjs'
 import { getServerSession } from '@/lib/session'
 
@@ -13,14 +13,15 @@ export async function POST(request: Request) {
     return Response.json({ message: 'Укажите текущий и новый пароль' }, { status: 400 })
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.userId } })
+  const { data: user } = await supabaseAdmin.from('User').select('*').eq('id', session.userId).maybeSingle()
   if (!user) return Response.json({ message: 'Пользователь не найден' }, { status: 404 })
 
   const ok = await bcrypt.compare(body.currentPassword, user.password)
   if (!ok) return Response.json({ message: 'Неверный текущий пароль' }, { status: 400 })
 
   const newHash = await bcrypt.hash(body.newPassword, 10)
-  await prisma.user.update({ where: { id: user.id }, data: { password: newHash } })
+  const { error } = await supabaseAdmin.from('User').update({ password: newHash }).eq('id', user.id).limit(1)
+  if (error) return Response.json({ message: error.message }, { status: 500 })
 
   return Response.json({ ok: true })
 }

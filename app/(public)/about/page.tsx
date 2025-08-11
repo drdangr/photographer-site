@@ -1,10 +1,11 @@
-import { prisma } from '@/lib/prisma'
+import { supabase } from '@/lib/supabase'
 import ReactMarkdown from 'react-markdown'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AboutPage() {
-  const author = await prisma.authorProfile.findFirst()
+  const { data } = await supabase.from('AuthorProfile').select('*').limit(1).maybeSingle()
+  const author = data || null
   return (
     <section className="prose max-w-none">
       <h1>Об авторе</h1>

@@ -1,13 +1,15 @@
-import { prisma } from '@/lib/prisma'
+import { supabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
 
 export default async function GalleriesPage() {
-  const galleries = await prisma.gallery.findMany({
-    orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
-  })
+  const { data: galleries } = await supabase
+    .from('Gallery')
+    .select('*')
+    .order('displayOrder', { ascending: true })
+    .order('createdAt', { ascending: false })
   return (
     <section>
       <h1 className="text-2xl font-semibold mb-4">Галереи</h1>

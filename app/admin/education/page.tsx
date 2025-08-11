@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabaseServer'
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/session'
 
@@ -6,7 +6,7 @@ export default async function AdminEducationPage() {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
 
-  const items = await prisma.educationOffering.findMany({ orderBy: { kind: 'asc' } })
+  const { data: items } = await supabaseAdmin.from('EducationOffering').select('*').order('kind', { ascending: true })
   return (
     <div className="space-y-6">
       <form action={saveEducation} className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end">
@@ -73,11 +73,12 @@ async function saveEducation(formData: FormData) {
   const price = priceRaw ? Number(priceRaw) : null
   const currency = String(formData.get('currency') || '') || null
   if (!title || !slug) return
-  await prisma.educationOffering.upsert({
-    where: { slug },
-    update: { kind, title, description, duration, price, currency },
-    create: { kind, title, slug, description, duration, price, currency },
-  })
+  const existing = await supabaseAdmin.from('EducationOffering').select('id').eq('slug', slug).maybeSingle()
+  if (existing.data) {
+    await supabaseAdmin.from('EducationOffering').update({ kind, title, description, duration, price, currency }).eq('id', existing.data.id).limit(1)
+  } else {
+    await supabaseAdmin.from('EducationOffering').insert({ kind, title, slug, description, duration, price, currency })
+  }
 }
 
 async function updateEducation(formData: FormData) {
@@ -92,14 +93,14 @@ async function updateEducation(formData: FormData) {
   const price = priceRaw !== null && priceRaw !== '' ? Number(priceRaw) : null
   const currency = String(formData.get('currency') || '') || null
   if (!id || !title || !slug) return
-  await prisma.educationOffering.update({ where: { id }, data: { kind, title, slug, description, duration, price, currency } })
+  await supabaseAdmin.from('EducationOffering').update({ kind, title, slug, description, duration, price, currency }).eq('id', id).limit(1)
 }
 
 async function deleteEducation(formData: FormData) {
   'use server'
   const id = Number(formData.get('id'))
   if (!id) return
-  await prisma.educationOffering.delete({ where: { id } })
+  await supabaseAdmin.from('EducationOffering').delete().eq('id', id).limit(1)
 }
 
 

@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabaseServer'
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/session'
 
@@ -6,7 +6,11 @@ export default async function AdminGalleriesPage() {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
 
-  const galleries = await prisma.gallery.findMany({ orderBy: [{ displayOrder: 'asc' }, { updatedAt: 'desc' }] })
+  const { data: galleries } = await supabaseAdmin
+    .from('Gallery')
+    .select('*')
+    .order('displayOrder', { ascending: true })
+    .order('updatedAt', { ascending: false })
   return (
     <div className="space-y-4">
       <a href="/admin/galleries/new" className="inline-block bg-slate-900 text-white px-4 py-2 rounded">Новая галерея</a>
@@ -38,34 +42,36 @@ export default async function AdminGalleriesPage() {
 async function moveUp(formData: FormData) {
   'use server'
   const id = Number(formData.get('id'))
-  const g = await prisma.gallery.findUnique({ where: { id } })
+  const { data: g } = await supabaseAdmin.from('Gallery').select('*').eq('id', id).maybeSingle()
   if (!g) return
-  const prev = await prisma.gallery.findFirst({
-    where: { displayOrder: { lt: g.displayOrder } },
-    orderBy: { displayOrder: 'desc' },
-  })
+  const { data: prev } = await supabaseAdmin
+    .from('Gallery')
+    .select('*')
+    .lt('displayOrder', g.displayOrder)
+    .order('displayOrder', { ascending: false })
+    .limit(1)
+    .maybeSingle()
   if (!prev) return
-  await prisma.$transaction([
-    prisma.gallery.update({ where: { id: g.id }, data: { displayOrder: prev.displayOrder } }),
-    prisma.gallery.update({ where: { id: prev.id }, data: { displayOrder: g.displayOrder } }),
-  ])
+  await supabaseAdmin.from('Gallery').update({ displayOrder: prev.displayOrder }).eq('id', g.id).limit(1)
+  await supabaseAdmin.from('Gallery').update({ displayOrder: g.displayOrder }).eq('id', prev.id).limit(1)
   redirect('/admin/galleries')
 }
 
 async function moveDown(formData: FormData) {
   'use server'
   const id = Number(formData.get('id'))
-  const g = await prisma.gallery.findUnique({ where: { id } })
+  const { data: g } = await supabaseAdmin.from('Gallery').select('*').eq('id', id).maybeSingle()
   if (!g) return
-  const next = await prisma.gallery.findFirst({
-    where: { displayOrder: { gt: g.displayOrder } },
-    orderBy: { displayOrder: 'asc' },
-  })
+  const { data: next } = await supabaseAdmin
+    .from('Gallery')
+    .select('*')
+    .gt('displayOrder', g.displayOrder)
+    .order('displayOrder', { ascending: true })
+    .limit(1)
+    .maybeSingle()
   if (!next) return
-  await prisma.$transaction([
-    prisma.gallery.update({ where: { id: g.id }, data: { displayOrder: next.displayOrder } }),
-    prisma.gallery.update({ where: { id: next.id }, data: { displayOrder: g.displayOrder } }),
-  ])
+  await supabaseAdmin.from('Gallery').update({ displayOrder: next.displayOrder }).eq('id', g.id).limit(1)
+  await supabaseAdmin.from('Gallery').update({ displayOrder: g.displayOrder }).eq('id', next.id).limit(1)
   redirect('/admin/galleries')
 }
 

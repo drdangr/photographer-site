@@ -1,11 +1,11 @@
-import { prisma } from '@/lib/prisma'
+import { supabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
 
 export default async function ServicesPage() {
-  const services = await prisma.serviceOffering.findMany({ orderBy: { title: 'asc' } })
+  const { data: services } = await supabase.from('ServiceOffering').select('*').order('title', { ascending: true })
   return (
     <section>
       <h1 className="text-2xl font-semibold mb-4">Профессиональные услуги</h1>

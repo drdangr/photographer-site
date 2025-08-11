@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabaseServer'
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/session'
 import { saveGallery, deleteGallery } from '../save'
@@ -12,8 +12,9 @@ export default async function EditGalleryPage({ params }: Props) {
   if (!session.userId) redirect('/admin/login')
 
   const id = Number(params.id)
-  const gallery = await prisma.gallery.findUnique({ where: { id }, include: { photos: { orderBy: { order: 'asc' } } } })
+  const { data: gallery } = await supabaseAdmin.from('Gallery').select('*').eq('id', id).maybeSingle()
   if (!gallery) redirect('/admin/galleries')
+  const { data: photos } = await supabaseAdmin.from('Photo').select('*').eq('galleryId', gallery.id).order('order', { ascending: true })
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -53,11 +54,11 @@ export default async function EditGalleryPage({ params }: Props) {
       <section>
         <h3 className="text-lg font-semibold mb-3">Фотографии</h3>
 
-        {gallery.photos.length === 0 ? (
+         {(photos || []).length === 0 ? (
           <div className="text-sm text-slate-500">Пока нет фотографий</div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {gallery.photos.map((p) => (
+             {(photos || []).map((p) => (
               <form key={p.id} action={deletePhoto} className="relative group border rounded overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.url} alt={p.alt ?? ''} className="w-full h-40 object-cover" />
@@ -91,11 +92,15 @@ async function addPhotos(formData: FormData) {
     if (Array.isArray(parsed)) urls = parsed.filter((u) => typeof u === 'string' && u.length > 0)
   } catch {}
   if (urls.length === 0) return
-  const maxOrder = await prisma.photo.aggregate({ where: { galleryId }, _max: { order: true } })
-  let order = (maxOrder._max.order ?? 0) + 1
-  await prisma.photo.createMany({
-    data: urls.map((u) => ({ galleryId, url: u, alt, order: order++ })),
-  })
+  const { data: maxRow } = await supabaseAdmin
+    .from('Photo')
+    .select('order')
+    .eq('galleryId', galleryId)
+    .order('order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  let order = ((maxRow?.order as number) ?? 0) + 1
+  await supabaseAdmin.from('Photo').insert(urls.map((u) => ({ galleryId, url: u, alt, order: order++ })))
 }
 
 async function deletePhoto(formData: FormData) {
@@ -103,7 +108,7 @@ async function deletePhoto(formData: FormData) {
   const photoId = Number(formData.get('photoId'))
   if (!photoId) return
   // Удаляем без ошибки, даже если записи уже нет
-  await prisma.photo.deleteMany({ where: { id: photoId } })
+  await supabaseAdmin.from('Photo').delete().eq('id', photoId).limit(1)
 }
 
 

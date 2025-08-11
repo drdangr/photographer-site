@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabaseServer'
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/session'
 
@@ -6,7 +6,7 @@ export default async function AdminServicesPage() {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
 
-  const items = await prisma.serviceOffering.findMany({ orderBy: { title: 'asc' } })
+  const { data: items } = await supabaseAdmin.from('ServiceOffering').select('*').order('title', { ascending: true })
   return (
     <div className="space-y-6">
       <form action={saveService} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
@@ -57,11 +57,12 @@ async function saveService(formData: FormData) {
   const price = priceRaw ? Number(priceRaw) : null
   const currency = String(formData.get('currency') || '') || null
   if (!title || !slug) return
-  await prisma.serviceOffering.upsert({
-    where: { slug },
-    update: { title, description, price, currency },
-    create: { title, slug, description, price, currency },
-  })
+  const existing = await supabaseAdmin.from('ServiceOffering').select('id').eq('slug', slug).maybeSingle()
+  if (existing.data) {
+    await supabaseAdmin.from('ServiceOffering').update({ title, description, price, currency }).eq('id', existing.data.id).limit(1)
+  } else {
+    await supabaseAdmin.from('ServiceOffering').insert({ title, slug, description, price, currency })
+  }
 }
 
 async function updateService(formData: FormData) {
@@ -74,14 +75,14 @@ async function updateService(formData: FormData) {
   const price = priceRaw !== null && priceRaw !== '' ? Number(priceRaw) : null
   const currency = String(formData.get('currency') || '') || null
   if (!id || !title || !slug) return
-  await prisma.serviceOffering.update({ where: { id }, data: { title, slug, description, price, currency } })
+  await supabaseAdmin.from('ServiceOffering').update({ title, slug, description, price, currency }).eq('id', id).limit(1)
 }
 
 async function deleteService(formData: FormData) {
   'use server'
   const id = Number(formData.get('id'))
   if (!id) return
-  await prisma.serviceOffering.delete({ where: { id } })
+  await supabaseAdmin.from('ServiceOffering').delete().eq('id', id).limit(1)
 }
 
 

@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabaseServer'
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/session'
 import ImageInput from '@/components/ImageInput'
@@ -7,7 +7,7 @@ export default async function AdminAuthorPage() {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
 
-  const author = await prisma.authorProfile.findFirst()
+  const { data: author } = await supabaseAdmin.from('AuthorProfile').select('*').limit(1).maybeSingle()
 
   return (
     <form action={saveAuthor} className="max-w-2xl space-y-4">
@@ -45,12 +45,9 @@ async function saveAuthor(formData: FormData) {
   }
 
   if (id) {
-    await prisma.authorProfile.update({
-      where: { id },
-      data: { fullName, avatarUrl, bioMarkdown, contacts }
-    })
+    await supabaseAdmin.from('AuthorProfile').update({ fullName, avatarUrl, bioMarkdown, contacts }).eq('id', id).limit(1)
   } else {
-    await prisma.authorProfile.create({ data: { fullName, avatarUrl, bioMarkdown, contacts } })
+    await supabaseAdmin.from('AuthorProfile').insert({ fullName, avatarUrl, bioMarkdown, contacts })
   }
 }
 
