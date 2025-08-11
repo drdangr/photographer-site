@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuthorProfile {
+  id          Int      @id @default(autoincrement())
+  fullName    String
+  avatarUrl   String?
+  bioMarkdown String?
+  contacts    String? // json string (phones, socials)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Gallery {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  description String?
+  coverUrl    String?
+  displayOrder Int     @default(0)
+  photos      Photo[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Photo {
+  id        Int     @id @default(autoincrement())
+  url       String
+  alt       String?
+  order     Int      @default(0)
+  gallery   Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  galleryId Int
+}
+
+model ServiceOffering {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  description String?
+  price       Int?     // в базовой валюте (например, рубли)
+  currency    String?  // ISO код
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EducationOffering {
+  id          Int      @id @default(autoincrement())
+  kind        EducationKind
+  title       String
+  slug        String   @unique
+  description String?
+  duration    String?  // произвольное описание длительности
+  price       Int?
+  currency    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum EducationKind {
+  WORKSHOP
+  COURSE
+  ACADEMIC
+}
+
+

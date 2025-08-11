@@ -1,0 +1,41 @@
+import { redirect } from 'next/navigation'
+import { getServerSession } from '@/lib/session'
+import { saveGallery } from '../../galleries/save'
+import ImageInput from '@/components/ImageInput'
+import MultiImageInput from '@/components/MultiImageInput'
+
+export default async function NewGalleryPage() {
+  const session = await getServerSession()
+  if (!session.userId) redirect('/admin/login')
+
+  return (
+    <form action={saveGallery} className="max-w-2xl space-y-4">
+      <h2 className="text-xl font-semibold">Новая галерея</h2>
+      <div>
+        <label className="block text-sm mb-1">Название</label>
+        <input name="title" className="border rounded w-full p-2" required />
+      </div>
+      <div>
+        <label className="block text-sm mb-1">Slug</label>
+        <input name="slug" className="border rounded w-full p-2" placeholder="eng-slug" required />
+      </div>
+      <div>
+        <label className="block text-sm mb-1">Описание</label>
+        <textarea name="description" className="border rounded w-full p-2" />
+      </div>
+      <div>
+        <label className="block text-sm mb-1">Порядок отображения</label>
+        <input name="displayOrder" type="number" className="border rounded w-40 p-2" defaultValue={0} />
+      </div>
+      <ImageInput name="coverUrl" label="Обложка (URL или загрузка)" />
+      <MultiImageInput name="photosJson" label="Фото для галереи (URL или файлы)" />
+      <div>
+        <label className="block text-sm mb-1">ALT для фото (опционально)</label>
+        <input name="alt" className="border rounded w-full p-2 md:w-96" />
+      </div>
+      <button className="bg-slate-900 text-white px-4 py-2 rounded">Создать</button>
+    </form>
+  )
+}
+
+

@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground: 20 14 5;
+  --background: 0 0% 100%;
+}
+
+html, body, #__next {
+  height: 100%;
+}
+
+body {
+  color: rgb(15, 23, 42);
+  background: white;
+}
+
