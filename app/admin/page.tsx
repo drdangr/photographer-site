@@ -13,6 +13,7 @@ export default async function AdminIndex() {
         <li>Редактируйте профиль автора</li>
         <li>Создавайте и обновляйте галереи</li>
         <li>Управляйте услугами и обучением</li>
+        <li><a className="underline" href="/admin/account">Сменить пароль</a></li>
       </ul>
     </div>
   )
