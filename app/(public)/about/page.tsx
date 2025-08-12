@@ -4,15 +4,22 @@ import ReactMarkdown from 'react-markdown'
 export const dynamic = 'force-dynamic'
 
 export default async function AboutPage() {
-  const { data } = await supabase.from('AuthorProfile').select('*').limit(1).maybeSingle()
+  const { data } = await supabase
+    .from('AuthorProfile')
+    .select('*')
+    .order('updatedAt', { ascending: false })
+    .limit(1)
+    .maybeSingle()
   const author = data || null
   return (
     <section className="prose max-w-none">
-      <h1>Об авторе</h1>
       {author?.avatarUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={author.avatarUrl} alt={author.fullName ?? 'Автор'} className="w-32 h-32 rounded-full object-cover border" />
+        <img src={author.avatarUrl} alt={author.fullName ?? 'Автор'} className="w-48 h-48 rounded-full object-cover border" />
       )}
+      <h1 className="!mt-4 !mb-2 !text-3xl md:!text-5xl !font-extrabold">
+        {author?.fullName || 'Об авторе'}
+      </h1>
       {author?.bioMarkdown ? (
         <ReactMarkdown>{author.bioMarkdown}</ReactMarkdown>
       ) : (

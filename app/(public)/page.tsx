@@ -3,7 +3,12 @@ import { supabase } from '@/lib/supabase'
 export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
-  const { data } = await supabase.from('AuthorProfile').select('*').limit(1).maybeSingle()
+  const { data } = await supabase
+    .from('AuthorProfile')
+    .select('*')
+    .order('updatedAt', { ascending: false })
+    .limit(1)
+    .maybeSingle()
   const author = data || null
   return (
     <section className="space-y-6">
@@ -13,7 +18,7 @@ export default async function HomePage() {
           <img src={author.avatarUrl} alt={author.fullName ?? 'Автор'} className="w-20 h-20 rounded-full object-cover border" />
         )}
         <div>
-          <h1 className="text-3xl font-bold">{author?.fullName ?? 'Портфолио фотографа'}</h1>
+          <h1 className="text-3xl font-bold">{author?.fullName || ''}</h1>
           <p className="text-slate-700">Добро пожаловать на официальный сайт{author?.fullName ? ` — ${author.fullName}` : ''}.</p>
         </div>
       </div>

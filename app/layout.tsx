@@ -1,13 +1,22 @@
 import './globals.css'
 import type { ReactNode } from 'react'
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+import { supabase } from '@/lib/supabase'
+
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const { data: author } = await supabase
+    .from('AuthorProfile')
+    .select('fullName')
+    .order('updatedAt', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const fullName = author?.fullName || 'Автор'
+
   return (
     <html lang="ru" suppressHydrationWarning data-gramm="false" data-gramm_editor="false">
       <body className="min-h-screen bg-white text-slate-900" suppressHydrationWarning>
         <div className="max-w-6xl mx-auto px-4 py-6">
-          <header className="flex items-center justify-between mb-8">
-            <a href="/" className="text-xl font-semibold">Фотограф</a>
+          <header className="flex items-center justify-end mb-8">
             <nav className="space-x-4">
               <a href="/about" className="hover:underline">Об авторе</a>
               <a href="/galleries" className="hover:underline">Галереи</a>
@@ -18,7 +27,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </nav>
           </header>
           <main>{children}</main>
-          <footer className="mt-16 text-sm text-slate-500">© {new Date().getFullYear()} Фотограф</footer>
+          <footer className="mt-16 text-sm text-slate-500">© {new Date().getFullYear()} {fullName}</footer>
         </div>
       </body>
     </html>
