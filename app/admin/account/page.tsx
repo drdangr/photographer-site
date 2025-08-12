@@ -1,4 +1,7 @@
 import { getServerSession } from '@/lib/session'
+import { redirect } from 'next/navigation'
+import { supabaseAdmin } from '@/lib/supabaseServer'
+import bcrypt from 'bcryptjs'
 
 export default async function AccountPage() {
   const session = await getServerSession()
@@ -27,14 +30,31 @@ async function changePassword(formData: FormData) {
   'use server'
   const currentPassword = String(formData.get('currentPassword') || '')
   const newPassword = String(formData.get('newPassword') || '')
-  const res = await fetch('/api/auth/change-password', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ currentPassword, newPassword }),
-  })
-  if (!res.ok) {
-    throw new Error('Не удалось сменить пароль')
-  }
+  if (!currentPassword || !newPassword) throw new Error('Укажите пароли')
+
+  const session = await getServerSession()
+  if (!session.userId) throw new Error('Нужно войти')
+
+  const { data: user, error: readErr } = await supabaseAdmin
+    .from('User')
+    .select('*')
+    .eq('id', session.userId)
+    .maybeSingle()
+  if (readErr) throw new Error(readErr.message)
+  if (!user) throw new Error('Пользователь не найден')
+
+  const ok = await bcrypt.compare(currentPassword, user.password as string)
+  if (!ok) throw new Error('Неверный текущий пароль')
+
+  const newHash = await bcrypt.hash(newPassword, 10)
+  const { error: updErr } = await supabaseAdmin
+    .from('User')
+    .update({ password: newHash })
+    .eq('id', user.id)
+    .limit(1)
+  if (updErr) throw new Error(updErr.message)
+
+  redirect('/admin')
 }
 
 

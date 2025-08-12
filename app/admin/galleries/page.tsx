@@ -1,4 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabaseServer'
+import { revalidatePath } from 'next/cache'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/session'
 
@@ -42,36 +46,54 @@ export default async function AdminGalleriesPage() {
 async function moveUp(formData: FormData) {
   'use server'
   const id = Number(formData.get('id'))
-  const { data: g } = await supabaseAdmin.from('Gallery').select('*').eq('id', id).maybeSingle()
-  if (!g) return
-  const { data: prev } = await supabaseAdmin
+  const { data: rows } = await supabaseAdmin
     .from('Gallery')
-    .select('*')
-    .lt('displayOrder', g.displayOrder)
-    .order('displayOrder', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (!prev) return
-  await supabaseAdmin.from('Gallery').update({ displayOrder: prev.displayOrder }).eq('id', g.id).limit(1)
-  await supabaseAdmin.from('Gallery').update({ displayOrder: g.displayOrder }).eq('id', prev.id).limit(1)
+    .select('id, displayOrder')
+    .order('displayOrder', { ascending: true })
+    .order('id', { ascending: true })
+  if (!rows) return
+  // Нормализуем порядок: 1..N без дублей, чтобы swap работал
+  for (let i = 0; i < rows.length; i++) {
+    const desired = i + 1
+    if ((rows[i].displayOrder as number) !== desired) {
+      await supabaseAdmin.from('Gallery').update({ displayOrder: desired }).eq('id', rows[i].id).limit(1)
+      rows[i].displayOrder = desired as any
+    }
+  }
+  const idx = rows.findIndex((r) => r.id === id)
+  if (idx <= 0) return
+  const curr = rows[idx]
+  const prev = rows[idx - 1]
+  await supabaseAdmin.from('Gallery').update({ displayOrder: prev.displayOrder }).eq('id', curr.id).limit(1)
+  await supabaseAdmin.from('Gallery').update({ displayOrder: curr.displayOrder }).eq('id', prev.id).limit(1)
+  revalidatePath('/admin/galleries')
   redirect('/admin/galleries')
 }
 
 async function moveDown(formData: FormData) {
   'use server'
   const id = Number(formData.get('id'))
-  const { data: g } = await supabaseAdmin.from('Gallery').select('*').eq('id', id).maybeSingle()
-  if (!g) return
-  const { data: next } = await supabaseAdmin
+  const { data: rows } = await supabaseAdmin
     .from('Gallery')
-    .select('*')
-    .gt('displayOrder', g.displayOrder)
+    .select('id, displayOrder')
     .order('displayOrder', { ascending: true })
-    .limit(1)
-    .maybeSingle()
-  if (!next) return
-  await supabaseAdmin.from('Gallery').update({ displayOrder: next.displayOrder }).eq('id', g.id).limit(1)
-  await supabaseAdmin.from('Gallery').update({ displayOrder: g.displayOrder }).eq('id', next.id).limit(1)
+    .order('id', { ascending: true })
+  if (!rows) return
+  // Нормализуем 1..N на случай дублей/нулей
+  for (let i = 0; i < rows.length; i++) {
+    const desired = i + 1
+    if ((rows[i].displayOrder as number) !== desired) {
+      await supabaseAdmin.from('Gallery').update({ displayOrder: desired }).eq('id', rows[i].id).limit(1)
+      rows[i].displayOrder = desired as any
+    }
+  }
+  const idx = rows.findIndex((r) => r.id === id)
+  if (idx === -1 || idx >= rows.length - 1) return
+  const curr = rows[idx]
+  const next = rows[idx + 1]
+  await supabaseAdmin.from('Gallery').update({ displayOrder: next.displayOrder }).eq('id', curr.id).limit(1)
+  await supabaseAdmin.from('Gallery').update({ displayOrder: curr.displayOrder }).eq('id', next.id).limit(1)
+  revalidatePath('/admin/galleries')
   redirect('/admin/galleries')
 }
 
