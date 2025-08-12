@@ -13,6 +13,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <a href="/galleries" className="hover:underline">Галереи</a>
               <a href="/services" className="hover:underline">Услуги</a>
               <a href="/education" className="hover:underline">Обучение</a>
+              <a href="/clients" className="hover:underline">Клиентам</a>
               <a href="/admin" className="hover:underline">Админ</a>
             </nav>
           </header>

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import ThumbGridWithLightbox from '@/components/ThumbGridWithLightbox'
 import { notFound } from 'next/navigation'
 
 type Props = { params: { slug: string } }
@@ -14,12 +15,7 @@ export default async function GalleryPage({ params }: Props) {
       {gallery.description && (
         <p className="text-slate-700 mb-6">{gallery.description}</p>
       )}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {(photos || []).map((p) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={p.id} src={p.url} alt={p.alt ?? ''} className="w-full h-48 object-cover" />
-        ))}
-      </div>
+      <ThumbGridWithLightbox items={(photos as any || []).map((p: any) => ({ url: p.url, caption: p.alt }))} />
     </section>
   )
 }

@@ -8,7 +8,18 @@ export async function POST(request: NextRequest) {
   if (!file) return Response.json({ message: 'Нет файла' }, { status: 400 })
 
   const originalName = (file as any).name || 'image'
-  const filename = `${Date.now()}-${originalName}`
+  // sanitize filename for Supabase Storage (no spaces or unsupported chars)
+  const extMatch = originalName.match(/\.[a-zA-Z0-9]+$/)
+  const ext = extMatch ? extMatch[0].toLowerCase() : ''
+  const base = originalName.replace(/\.[^.]*$/, '')
+  const sanitizedBase = base
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9._-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$|\.+$/g, '')
+    .slice(0, 80)
+  const filename = `${Date.now()}-${sanitizedBase || 'image'}${ext}`
 
   const useSupabase = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -20,11 +31,13 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
     const arrayBuffer = await file.arrayBuffer()
-    const filePath = `${new Date().toISOString().slice(0, 10)}/${filename}`
+    const d = new Date()
+    const folder = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
+    const filePath = `${folder}/${filename}`
 
     const { error } = await supabase.storage.from(bucket).upload(filePath, Buffer.from(arrayBuffer), {
       contentType: (file as any).type || 'application/octet-stream',
-      upsert: false,
+      upsert: true,
     })
 
     if (error) {
