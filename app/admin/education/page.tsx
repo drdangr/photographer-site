@@ -6,7 +6,8 @@ export default async function AdminEducationPage() {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
 
-  const { data: items } = await supabaseAdmin.from('EducationOffering').select('*').order('kind', { ascending: true })
+  const { data } = await supabaseAdmin.from('EducationOffering').select('*').order('kind', { ascending: true })
+  const items = data ?? []
   return (
     <div className="space-y-6">
       <form action={saveEducation} className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end">

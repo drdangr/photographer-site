@@ -5,11 +5,12 @@ export const revalidate = 0
 export const runtime = 'nodejs'
 
 export default async function GalleriesPage() {
-  const { data: galleries } = await supabase
+  const { data } = await supabase
     .from('Gallery')
     .select('*')
     .order('displayOrder', { ascending: true })
     .order('createdAt', { ascending: false })
+  const galleries = data ?? []
   return (
     <section>
       <h1 className="text-2xl font-semibold mb-4">Галереи</h1>

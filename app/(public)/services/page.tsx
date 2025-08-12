@@ -5,7 +5,11 @@ export const revalidate = 0
 export const runtime = 'nodejs'
 
 export default async function ServicesPage() {
-  const { data: services } = await supabase.from('ServiceOffering').select('*').order('title', { ascending: true })
+  const { data } = await supabase
+    .from('ServiceOffering')
+    .select('*')
+    .order('title', { ascending: true })
+  const services = data ?? []
   return (
     <section>
       <h1 className="text-2xl font-semibold mb-4">Профессиональные услуги</h1>

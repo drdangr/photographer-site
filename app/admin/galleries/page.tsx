@@ -10,11 +10,12 @@ export default async function AdminGalleriesPage() {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
 
-  const { data: galleries } = await supabaseAdmin
+  const { data } = await supabaseAdmin
     .from('Gallery')
     .select('*')
     .order('displayOrder', { ascending: true })
     .order('updatedAt', { ascending: false })
+  const galleries = data ?? []
   return (
     <div className="space-y-4">
       <a href="/admin/galleries/new" className="inline-block bg-slate-900 text-white px-4 py-2 rounded">Новая галерея</a>

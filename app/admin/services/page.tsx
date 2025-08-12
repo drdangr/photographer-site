@@ -6,7 +6,8 @@ export default async function AdminServicesPage() {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
 
-  const { data: items } = await supabaseAdmin.from('ServiceOffering').select('*').order('title', { ascending: true })
+  const { data } = await supabaseAdmin.from('ServiceOffering').select('*').order('title', { ascending: true })
+  const items = data ?? []
   return (
     <div className="space-y-6">
       <form action={saveService} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
