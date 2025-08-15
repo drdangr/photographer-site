@@ -23,10 +23,30 @@ export async function POST(request: NextRequest) {
   const originalName = (body?.fileName as string) || 'upload.bin'
   const bucket = process.env.SUPABASE_BUCKET || 'public-images'
 
+  // читаем префикс/галерею из query
+  const url = new URL(request.url)
+  let prefix = url.searchParams.get('prefix') || ''
+  const galleryIdRaw = url.searchParams.get('galleryId')
+  if (!prefix && galleryIdRaw) {
+    const gId = Number(galleryIdRaw)
+    if (Number.isFinite(gId) && gId > 0) {
+      const { data: g } = await supabaseAdmin
+        .from('ClientGallery')
+        .select('clientUserId')
+        .eq('id', gId)
+        .maybeSingle()
+      if (g?.clientUserId) prefix = `clients/${g.clientUserId}`
+    }
+  }
+  prefix = prefix.replace(/^\/+|\/+$/g, '')
+
   const d = new Date()
   const folder = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
   const filename = sanitizeFilename(originalName)
-  const path = `${folder}/${filename}`
+  // Если клиент передал prefix, считаем его ПОЛНЫМ путём (включая дату/slug/подпапки)
+  // иначе складываем в дату по умолчанию
+  const fullFolder = prefix ? prefix : folder
+  const path = `${fullFolder}/${filename}`
 
   const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUploadUrl(path)
   if (error || !data) {
@@ -34,7 +54,7 @@ export async function POST(request: NextRequest) {
   }
 
   const publicUrl = supabaseAdmin.storage.from(bucket).getPublicUrl(path).data.publicUrl
-  return Response.json({ bucket, path, token: data.token, publicUrl })
+  return Response.json({ bucket, path, token: data.token, signedUrl: data.signedUrl, publicUrl })
 }
 
 

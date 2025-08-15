@@ -5,9 +5,11 @@ type Props = {
   name: string
   label?: string
   defaultValue?: string | null
+  prefix?: string
+  galleryId?: number | string
 }
 
-export default function CoverImageInput({ name, label, defaultValue }: Props) {
+export default function CoverImageInput({ name, label, defaultValue, prefix, galleryId }: Props) {
   const [url, setUrl] = useState<string>(defaultValue ?? '')
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,7 +22,18 @@ export default function CoverImageInput({ name, label, defaultValue }: Props) {
     try {
       const form = new FormData()
       form.append('file', file)
-      const res = await fetch('/api/upload', { method: 'POST', body: form })
+      const params = new URLSearchParams()
+      let p = prefix
+      if (!p && typeof (window as any).__uploadCoverPrefix === 'function') {
+        try { p = (window as any).__uploadCoverPrefix() } catch {}
+      }
+      if (!p && typeof (window as any).__uploadPrefix === 'function') {
+        try { p = (window as any).__uploadPrefix() } catch {}
+      }
+      if (p) params.set('prefix', String(p))
+      if (galleryId !== undefined && galleryId !== null) params.set('galleryId', String(galleryId))
+      const url = '/api/upload' + (params.toString() ? `?${params.toString()}` : '')
+      const res = await fetch(url, { method: 'POST', body: form })
       if (!res.ok) throw new Error('Upload failed')
       const data = await res.json()
       setUrl(data.url)

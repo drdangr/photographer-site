@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseServer'
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/session'
 import { saveGallery, deleteGallery } from '../save'
@@ -38,8 +39,12 @@ export default async function EditGalleryPage({ params }: Props) {
           <label className="block text-sm mb-1">Порядок отображения</label>
           <input name="displayOrder" type="number" className="border rounded w-40 p-2" defaultValue={gallery.displayOrder} />
         </div>
+        {/* galleries/YYYY/MM/DD/<slug>/covers */}
+        <script dangerouslySetInnerHTML={{ __html: `window.__uploadCoverPrefix=()=>{const slug=document.querySelector('input[name=\\"slug\\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'galleries/'+y+'/'+m+'/'+day+'/'+slug+'/covers'}` }} />
         <ImageInput name="coverUrl" label="Обложка (URL или загрузка)" defaultValue={gallery.coverUrl ?? ''} />
         <div className="space-y-2">
+          {/* galleries/YYYY/MM/DD/<slug>/pictures */}
+          <script dangerouslySetInnerHTML={{ __html: `window.__uploadPrefix=()=>{const slug=document.querySelector('input[name=\\"slug\\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'galleries/'+y+'/'+m+'/'+day+'/'+slug+'/pictures'}` }} />
           <MultiImageInput name="photosJson" label="Добавить новые фото (URL или файлы)" />
           <div>
             <label className="block text-sm mb-1">ALT для новых фото (опционально)</label>
@@ -108,8 +113,26 @@ async function deletePhoto(formData: FormData) {
   'use server'
   const photoId = Number(formData.get('photoId'))
   if (!photoId) return
-  // Удаляем без ошибки, даже если записи уже нет
+  // Читаем URL до удаления записи
+  const { data: photo } = await supabaseAdmin.from('Photo').select('url, galleryId').eq('id', photoId).maybeSingle()
   await supabaseAdmin.from('Photo').delete().eq('id', photoId).limit(1)
+  // Пытаемся удалить файл из Storage
+  try {
+    if (photo?.url) {
+      const m = String(photo.url).match(/\/object\/public\/(.*?)\/(.*)$/)
+      const bucket = m?.[1]
+      const path = m?.[2]
+      if (bucket && path) {
+        const { createClient } = await import('@supabase/supabase-js')
+        const client = createClient(process.env.SUPABASE_URL as string, (process.env.SUPABASE_SERVICE_ROLE_KEY as string) || (process.env.SUPABASE_ANON_KEY as string))
+        await client.storage.from(bucket).remove([path])
+      }
+    }
+  } catch {}
+  if (photo?.galleryId) {
+    revalidatePath(`/admin/galleries/${photo.galleryId}`)
+    redirect(`/admin/galleries/${photo.galleryId}`)
+  }
 }
 
 

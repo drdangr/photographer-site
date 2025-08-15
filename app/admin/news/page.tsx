@@ -35,6 +35,7 @@ export default async function AdminNewsPage() {
         </div>
         <div>
           <label className="block text-sm mb-1">Текст</label>
+          <script dangerouslySetInnerHTML={{ __html: 'window.__uploadPrefix="news"' }} />
           <RichEditor name="bodyMd" />
         </div>
         <SaveButton>Добавить</SaveButton>
@@ -61,6 +62,7 @@ export default async function AdminNewsPage() {
               </div>
               <div>
                 <label className="block text-sm mb-1">Текст</label>
+                <script dangerouslySetInnerHTML={{ __html: 'window.__uploadPrefix="news"' }} />
                 <RichEditor name="bodyMd" defaultHtml={n.bodyMd ?? ''} />
               </div>
               <div className="flex items-center gap-3">

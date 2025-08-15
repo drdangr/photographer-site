@@ -2,6 +2,7 @@
 import MultiImageInput from '@/components/MultiImageInput'
 import Lightbox from '@/components/Lightbox'
 import { useEffect, useState } from 'react'
+import { deleteClientAuthorPhoto } from '../actions'
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser'
 
 type Props = { params: { id: string } }
@@ -20,6 +21,7 @@ export default function EditClientGallery({ params }: Props) {
   const [clientPhotos, setClientPhotos] = useState<ClientPhotoType[]>([])
   const [authorPhotos, setAuthorPhotos] = useState<AuthorPhotoType[]>([])
   const [lb, setLb] = useState<{ open: boolean; items: { url: string; caption?: string | null }[]; index: number }>({ open: false, items: [], index: 0 })
+  const [clientPrefix, setClientPrefix] = useState<string>('')
 
   useEffect(() => {
     ;(async () => {
@@ -66,6 +68,14 @@ export default function EditClientGallery({ params }: Props) {
     })()
   }, [id])
 
+  useEffect(() => {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    setClientPrefix(`clients/${y}/${m}/${day}/gallery-${id}/client/pictures`)
+  }, [id])
+
   async function onAddClientPhotos(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formEl = e.currentTarget as HTMLFormElement
@@ -99,7 +109,38 @@ export default function EditClientGallery({ params }: Props) {
   if (!gallery) return <div className="text-sm text-slate-600">Галерея не найдена</div>
 
   async function deleteClientPhoto(photoId: number) {
+    // Получаем URL для безопасного удаления файла
+    const { data: ph } = await supabase
+      .from('ClientPhoto')
+      .select('url')
+      .eq('id', photoId)
+      .maybeSingle()
     await supabase.from('ClientPhoto').delete().eq('id', photoId).limit(1)
+    // Чистим файл, если больше не используется
+    try {
+      const url = (ph as any)?.url as string | undefined
+      if (url) {
+        const admin = await fetch('/api/admin/cleanup-orphan-media?prefix=', { cache: 'no-store' })
+        // игнорируем ответ; у нас есть отдельная быстрая чистка ниже
+        const mark = '/object/public/'
+        const idx = url.indexOf(mark)
+        if (idx !== -1) {
+          const tail = url.substring(idx + mark.length)
+          const parts = tail.split('/')
+          if (parts.length >= 2) {
+            const bucket = parts[0]
+            const path = parts.slice(1).join('/')
+            const { createClient } = await import('@supabase/supabase-js')
+            const client = createClient(
+              process.env.NEXT_PUBLIC_SUPABASE_URL || (process.env.SUPABASE_URL as string),
+              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || (process.env.SUPABASE_ANON_KEY as string)
+            )
+            // попытка удалить — если объект используется ещё где-то, он останется (у нас нет ссылки из БД)
+            try { await client.storage.from(bucket).remove([path]) } catch {}
+          }
+        }
+      }
+    } catch {}
     const { data: cp } = await supabase
       .from('ClientPhoto')
       .select('*')
@@ -118,6 +159,19 @@ export default function EditClientGallery({ params }: Props) {
       .eq('clientGalleryId', id)
       .order('order', { ascending: true })
     setClientPhotos((cp as any) || [])
+  }
+
+  async function deleteAuthorPhoto(photoId: number) {
+    const form = new FormData()
+    form.set('photoId', String(photoId))
+    form.set('galleryId', String(id))
+    await deleteClientAuthorPhoto(form)
+    const { data: ap } = await supabase
+      .from('ClientAuthorPhoto')
+      .select('*')
+      .eq('clientGalleryId', id)
+      .order('order', { ascending: true })
+    setAuthorPhotos((ap as any) || [])
   }
 
   // helpers
@@ -146,7 +200,8 @@ export default function EditClientGallery({ params }: Props) {
       <section>
         <h3 className="font-semibold mb-2">Мои фото</h3>
         <form onSubmit={onAddClientPhotos} className="space-y-2">
-          <MultiImageInput name="photosJson" />
+          <input type="hidden" name="galleryId" value={id} />
+          <MultiImageInput name="photosJson" prefix={clientPrefix} />
           <div>
             <label className="block text-sm mb-1">Комментарий к загрузке</label>
             <input name="uploadComment" className="border rounded p-2 w-full" />
@@ -196,7 +251,7 @@ export default function EditClientGallery({ params }: Props) {
             <div key={`ag-${gi}`} className="space-y-3 pt-8 border-t border-slate-300">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {g.items.map((p, i) => (
-                  <div key={p.id} className="border rounded overflow-hidden">
+                  <div key={p.id} className="border rounded overflow-hidden group relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={p.url}
@@ -204,6 +259,11 @@ export default function EditClientGallery({ params }: Props) {
                       className="w-full h-40 object-cover cursor-zoom-in"
                       onClick={() => setLb({ open: true, items: g.items.map((it) => ({ url: it.url, caption: it.authorComment })), index: i })}
                     />
+                    {isAdmin && (
+                      <div className="absolute top-1 right-1 text-xs text-slate-600 hidden group-hover:block">
+                        <button type="button" className="bg-white/90 border rounded px-1" title="Удалить" onClick={() => deleteAuthorPhoto(p.id)}>✕</button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -227,6 +287,14 @@ export default function EditClientGallery({ params }: Props) {
 
 function AdminAuthorUploader({ galleryId, afterUpload }: { galleryId: number; afterUpload: () => void }) {
   const supabase = getSupabaseBrowser()
+  const [prefix, setPrefix] = useState<string>('')
+  useEffect(() => {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    setPrefix(`clients/${y}/${m}/${day}/gallery-${galleryId}/master/pictures`)
+  }, [galleryId])
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formEl = e.currentTarget as HTMLFormElement
@@ -250,7 +318,8 @@ function AdminAuthorUploader({ galleryId, afterUpload }: { galleryId: number; af
   }
   return (
     <form onSubmit={onSubmit} className="space-y-2">
-      <MultiImageInput name="photosJson" />
+      <input type="hidden" name="galleryId" value={galleryId} />
+      <MultiImageInput name="photosJson" prefix={prefix} />
       <div>
         <label className="block text-sm mb-1">Комментарий фотографа</label>
         <input name="authorComment" className="border rounded p-2 w-full" />

@@ -28,7 +28,11 @@ export default async function NewGalleryPage() {
         <label className="block text-sm mb-1">Порядок отображения</label>
         <input name="displayOrder" type="number" className="border rounded w-40 p-2" defaultValue={0} />
       </div>
+      {/* galleries/YYYY/MM/DD/<slug>/covers */}
+      <script dangerouslySetInnerHTML={{ __html: `window.__uploadCoverPrefix=()=>{const slug=document.querySelector('input[name=\\"slug\\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'galleries/'+y+'/'+m+'/'+day+'/'+slug+'/covers'}` }} />
       <ImageInput name="coverUrl" label="Обложка (URL или загрузка)" />
+      {/* galleries/YYYY/MM/DD/<slug>/pictures */}
+      <script dangerouslySetInnerHTML={{ __html: `window.__uploadPrefix=()=>{const slug=document.querySelector('input[name=\\"slug\\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'galleries/'+y+'/'+m+'/'+day+'/'+slug+'/pictures'}` }} />
       <MultiImageInput name="photosJson" label="Фото для галереи (URL или файлы)" />
       <div>
         <label className="block text-sm mb-1">ALT для фото (опционально)</label>

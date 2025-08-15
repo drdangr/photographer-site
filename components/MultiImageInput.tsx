@@ -4,9 +4,11 @@ import { useState } from 'react'
 type Props = {
   name: string // имя скрытого поля, куда положим JSON со списком URL
   label?: string
+  prefix?: string
+  galleryId?: number | string
 }
 
-export default function MultiImageInput({ name, label }: Props) {
+export default function MultiImageInput({ name, label, prefix, galleryId }: Props) {
   const [urls, setUrls] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -22,7 +24,15 @@ export default function MultiImageInput({ name, label }: Props) {
       for (const file of files) {
         const form = new FormData()
         form.append('file', file)
-        const res = await fetch('/api/upload', { method: 'POST', body: form })
+        const params = new URLSearchParams()
+        let p = prefix
+        if (!p && typeof (window as any).__uploadPrefix === 'function') {
+          try { p = (window as any).__uploadPrefix() } catch {}
+        }
+        if (p) params.set('prefix', String(p))
+        if (galleryId !== undefined && galleryId !== null) params.set('galleryId', String(galleryId))
+        const url = '/api/upload' + (params.toString() ? `?${params.toString()}` : '')
+        const res = await fetch(url, { method: 'POST', body: form })
         if (!res.ok) throw new Error('upload failed')
         const data = await res.json()
         uploaded.push(data.url)

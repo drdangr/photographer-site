@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabaseServer'
 
 export const runtime = 'nodejs'
 
@@ -21,6 +22,22 @@ export async function POST(request: NextRequest) {
     .slice(0, 80)
   const filename = `${Date.now()}-${sanitizedBase || 'image'}${ext}`
 
+  const urlObj = new URL(request.url)
+  let prefix = urlObj.searchParams.get('prefix') || ''
+  const galleryIdRaw = urlObj.searchParams.get('galleryId')
+  if (!prefix && galleryIdRaw) {
+    const gId = Number(galleryIdRaw)
+    if (Number.isFinite(gId) && gId > 0) {
+      const { data: g } = await supabaseAdmin
+        .from('ClientGallery')
+        .select('clientUserId')
+        .eq('id', gId)
+        .maybeSingle()
+      if (g?.clientUserId) prefix = `clients/${g.clientUserId}`
+    }
+  }
+  prefix = prefix.replace(/^\/+|\/+$/g, '') // trim slashes
+
   const useSupabase = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (useSupabase) {
@@ -33,7 +50,8 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const d = new Date()
     const folder = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
-    const filePath = `${folder}/${filename}`
+    const prefixPath = prefix ? prefix : folder
+    const filePath = `${prefixPath}/${filename}`
 
     const { error } = await supabase.storage.from(bucket).upload(filePath, Buffer.from(arrayBuffer), {
       contentType: (file as any).type || 'application/octet-stream',
@@ -54,8 +72,9 @@ export async function POST(request: NextRequest) {
   const arrayBuffer = await file.arrayBuffer()
   const buffer = Buffer.from(arrayBuffer)
   const uploadDir = join(process.cwd(), 'public', 'uploads')
-  if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true })
-  const filepath = join(uploadDir, filename)
+  const dir = prefix ? join(uploadDir, ...prefix.split('/')) : uploadDir
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  const filepath = join(dir, filename)
   await new Promise<void>((resolve, reject) => {
     const stream = createWriteStream(filepath)
     stream.write(buffer)
@@ -63,7 +82,8 @@ export async function POST(request: NextRequest) {
     stream.on('finish', () => resolve())
     stream.on('error', reject)
   })
-  return Response.json({ url: `/uploads/${filename}` })
+  const publicPath = prefix ? `/uploads/${prefix}/${filename}` : `/uploads/${filename}`
+  return Response.json({ url: publicPath })
 }
 
 

@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from 'react'
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser'
+import { deleteClientGallery } from './actions'
 import Lightbox from '@/components/Lightbox'
 
 type Gallery = { id: number; title: string | null; comment: string | null }
@@ -98,7 +99,13 @@ export default function ClientGalleriesPage() {
                   <div className="font-medium">{g.title} {(g as any).ownerEmail ? <span className="text-xs text-slate-500">({(g as any).ownerEmail})</span> : null}</div>
                   <div className="text-sm text-slate-600">{g.comment ?? ''}</div>
                 </div>
-                <a href={`/clients/galleries/${g.id}`} className="underline">Редактировать</a>
+                <div className="flex items-center gap-3">
+                  <a href={`/clients/galleries/${g.id}`} className="underline">Редактировать</a>
+                  <form action={deleteClientGallery}>
+                    <input type="hidden" name="galleryId" value={g.id} />
+                    <button className="text-red-600" onClick={(e) => { if (!confirm('Удалить эту галерею?')) { e.preventDefault(); e.stopPropagation(); } }}>Удалить</button>
+                  </form>
+                </div>
               </div>
               <div className="text-sm text-slate-700">Мои фото:</div>
               <div className="space-y-4">
@@ -142,5 +149,7 @@ export default function ClientGalleriesPage() {
     </section>
   )
 }
+
+// server action вынесен в ./actions.ts
 
 

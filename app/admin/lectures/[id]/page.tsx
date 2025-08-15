@@ -40,9 +40,13 @@ export default async function EditLecturePage({ params }: Props) {
           ))}
         </select>
       </div>
+      {/* lectures/YYYY/MM/DD/<slug>/covers */}
+      <script dangerouslySetInnerHTML={{ __html: `window.__uploadCoverPrefix=()=>{const slug=document.querySelector('input[name=\\"slug\\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/covers'}` }} />
       <CoverImageInput name="coverUrl" label="Обложка (URL или загрузка файла)" defaultValue={lecture.coverUrl ?? ''} />
       <div>
         <label className="block text-sm mb-1">Содержимое</label>
+        {/* lectures/YYYY/MM/DD/<slug>/pictures */}
+        <script dangerouslySetInnerHTML={{ __html: `window.__uploadPrefix=()=>{const slug=document.querySelector('input[name=\\"slug\\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/pictures'}` }} />
         <RichEditor name="contentHtml" defaultHtml={lecture.contentHtml ?? ''} />
       </div>
       <div className="flex gap-3">
@@ -63,11 +67,69 @@ async function save(formData: FormData) {
   const sectionIdRaw = formData.get('sectionId')
   const sectionId = sectionIdRaw ? Number(sectionIdRaw) : null
   if (!id || !title || !slug) return
+  // До обновления получаем прежний HTML, чтобы найти удалённые ссылки
+  const { data: beforeRow } = await supabaseAdmin.from('Lecture').select('contentHtml, coverUrl').eq('id', id).maybeSingle()
   await supabaseAdmin
     .from('Lecture')
     .update({ title, slug: normalizeSlug(slug), coverUrl, contentHtml, sectionId })
     .eq('id', id)
     .limit(1)
+  // Безопасно чистим файлы, удалённые из HTML/сменённую обложку, если они больше нигде не используются
+  try {
+    const extract = (html: string | null): Set<string> => {
+      const set = new Set<string>()
+      if (!html) return set
+      const re = /src\s*=\s*["']([^"']+)["']/gi
+      let m: RegExpExecArray | null
+      while ((m = re.exec(html))) set.add(m[1])
+      return set
+    }
+    const before = extract((beforeRow as any)?.contentHtml || '')
+    const after = extract(contentHtml)
+    const removed = Array.from(before).filter((u) => !after.has(u))
+    if (removed.length > 0 || ((beforeRow as any)?.coverUrl && (beforeRow as any)?.coverUrl !== coverUrl)) {
+      const supabaseUrl = process.env.SUPABASE_URL as string
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY as string
+      const { createClient } = await import('@supabase/supabase-js')
+      const sb = createClient(supabaseUrl, key)
+      const bucketEnv = process.env.SUPABASE_BUCKET || 'public-images'
+      const parse = (url: string) => {
+        const mark = '/storage/v1/object/public/'
+        const i = url.indexOf(mark)
+        if (i === -1) return null as null | { bucket: string; path: string }
+        const tail = url.substring(i + mark.length)
+        const [b, ...rest] = tail.split('/')
+        return { bucket: b, path: rest.join('/') }
+      }
+      const stillUsed = async (url: string) => {
+        const checks: Promise<any>[] = [
+          supabaseAdmin.from('Lecture').select('id').neq('id', id).like('contentHtml', `%${url}%`).limit(1).maybeSingle(),
+          supabaseAdmin.from('Lecture').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
+          supabaseAdmin.from('NewsItem').select('id').like('bodyMd', `%${url}%`).limit(1).maybeSingle(),
+          supabaseAdmin.from('Gallery').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
+          supabaseAdmin.from('Photo').select('id').eq('url', url).limit(1).maybeSingle(),
+          supabaseAdmin.from('ClientPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
+          supabaseAdmin.from('ClientAuthorPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
+          supabaseAdmin.from('AuthorProfile').select('id').eq('avatarUrl', url).limit(1).maybeSingle(),
+          supabaseAdmin.from('AuthorProfile').select('id').like('bioMarkdown', `%${url}%`).limit(1).maybeSingle(),
+        ]
+        const res = await Promise.allSettled(checks)
+        return res.some((r) => r.status === 'fulfilled' && (r as any).value?.data)
+      }
+      const toProcess = new Set<string>(removed)
+      const prevCover: string | null = ((beforeRow as any)?.coverUrl as string) || null
+      if (prevCover && prevCover !== coverUrl) toProcess.add(prevCover)
+      for (const url of toProcess) {
+        const used = await stillUsed(url)
+        if (used) continue
+        const bp = parse(url)
+        if (bp && bp.bucket === bucketEnv) {
+          try { await sb.storage.from(bp.bucket).remove([bp.path]) } catch {}
+          await supabaseAdmin.from('MediaAsset').delete().eq('publicUrl', url)
+        }
+      }
+    }
+  } catch {}
   redirect('/admin/lectures')
 }
 
@@ -75,6 +137,58 @@ async function remove(formData: FormData) {
   'use server'
   const id = Number(formData.get('id'))
   if (!id) return
+  // Сначала выгружаем HTML и обложку, чтобы удалить файлы из Storage (если они больше нигде не используются)
+  const { data: row } = await supabaseAdmin.from('Lecture').select('contentHtml, coverUrl').eq('id', id).maybeSingle()
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL as string
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY as string
+    const { createClient } = await import('@supabase/supabase-js')
+    const sb = createClient(supabaseUrl, key)
+    const bucketEnv = process.env.SUPABASE_BUCKET || 'public-images'
+    const parse = (url: string) => {
+      const mark = '/storage/v1/object/public/'
+      const i = url.indexOf(mark)
+      if (i === -1) return null as null | { bucket: string; path: string }
+      const tail = url.substring(i + mark.length)
+      const [b, ...rest] = tail.split('/')
+      return { bucket: b, path: rest.join('/') }
+    }
+    const extract = (html: string | null): string[] => {
+      const arr: string[] = []
+      if (!html) return arr
+      const re = /src\s*=\s*["']([^"']+)["']/gi
+      let m: RegExpExecArray | null
+      while ((m = re.exec(html))) arr.push(m[1])
+      return arr
+    }
+    const stillUsed = async (url: string) => {
+      const checks: Promise<any>[] = [
+        supabaseAdmin.from('Lecture').select('id').neq('id', id).like('contentHtml', `%${url}%`).limit(1).maybeSingle(),
+        supabaseAdmin.from('Lecture').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
+        supabaseAdmin.from('NewsItem').select('id').like('bodyMd', `%${url}%`).limit(1).maybeSingle(),
+        supabaseAdmin.from('Gallery').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
+        supabaseAdmin.from('Photo').select('id').eq('url', url).limit(1).maybeSingle(),
+        supabaseAdmin.from('ClientPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
+        supabaseAdmin.from('ClientAuthorPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
+        supabaseAdmin.from('AuthorProfile').select('id').eq('avatarUrl', url).limit(1).maybeSingle(),
+        supabaseAdmin.from('AuthorProfile').select('id').like('bioMarkdown', `%${url}%`).limit(1).maybeSingle(),
+      ]
+      const res = await Promise.allSettled(checks)
+      return res.some((r) => r.status === 'fulfilled' && (r as any).value?.data)
+    }
+    const urls = new Set<string>(extract((row as any)?.contentHtml || ''))
+    const cov: string | null = ((row as any)?.coverUrl as string) || null
+    if (cov) urls.add(cov)
+    for (const url of urls) {
+      const used = await stillUsed(url)
+      if (used) continue
+      const bp = parse(url)
+      if (bp && bp.bucket === bucketEnv) {
+        try { await sb.storage.from(bp.bucket).remove([bp.path]) } catch {}
+        await supabaseAdmin.from('MediaAsset').delete().eq('publicUrl', url)
+      }
+    }
+  } catch {}
   await supabaseAdmin.from('Lecture').delete().eq('id', id).limit(1)
   redirect('/admin/lectures')
 }

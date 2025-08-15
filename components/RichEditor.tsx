@@ -7,9 +7,7 @@ import Link from '@tiptap/extension-link'
 import TextAlign from '@tiptap/extension-text-align'
 import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
-import BulletList from '@tiptap/extension-bullet-list'
-import OrderedList from '@tiptap/extension-ordered-list'
-import ListItem from '@tiptap/extension-list-item'
+// Списки идут из StarterKit; отдельные расширения не подключаем, чтобы избежать дублей
 // Подсветку кода временно отключаем, оставляем стандартный CodeBlock из StarterKit
 import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
@@ -29,9 +27,6 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
     extensions: [
       // Базовые возможности
       StarterKit,
-      BulletList,
-      OrderedList,
-      ListItem,
       Underline,
       Link.configure({
         openOnClick: true,
@@ -51,6 +46,8 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
       TableHeader,
       TableCell,
     ],
+    // во избежание SSR-гидрации с несовпадением DOM
+    immediatelyRender: false,
     editorProps: {
       attributes: {
         class: 'prose max-w-none p-3 min-h-[220px] border rounded focus:outline-none',
@@ -73,7 +70,12 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
       const file = input.files?.[0]
       if (!file) return
       // 1) Получаем подписанный URL для прямой загрузки в Supabase Storage
-      const metaRes = await fetch('/api/storage/signed-upload', {
+      // Опциональный префикс для структурирования: lectures/, news/, clients/<userId>/, etc.
+      let dynPrefix = ''
+      if (typeof (window as any).__uploadPrefix === 'function') dynPrefix = (window as any).__uploadPrefix()
+      else if (typeof (window as any).__uploadPrefix === 'string') dynPrefix = (window as any).__uploadPrefix
+      const params = new URLSearchParams(dynPrefix ? { prefix: dynPrefix } : {})
+      const metaRes = await fetch('/api/storage/signed-upload' + (params.toString() ? `?${params.toString()}` : ''), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileName: (file as any).name || 'image' })
@@ -81,7 +83,7 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
       if (!metaRes.ok) return
       const meta = await metaRes.json()
       // 2) Загружаем файл напрямую по signed URL
-      const uploadRes = await fetch(meta.signedUrl || meta.signed_url || meta.data?.signedUrl || meta.url || meta.uploadUrl || meta.path, {
+      const uploadRes = await fetch(meta.signedUrl, {
         method: 'PUT',
         headers: { 'x-upsert': 'true', 'content-type': (file as any).type || 'application/octet-stream', 'authorization': `Bearer ${meta.token}` },
         body: file,
@@ -91,7 +93,8 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
         // fallback: наш старый API загрузки
         const form = new FormData()
         form.append('file', file)
-        const res = await fetch('/api/upload', { method: 'POST', body: form })
+        const upParams = params.toString() ? `?${params.toString()}` : ''
+        const res = await fetch('/api/upload' + upParams, { method: 'POST', body: form })
         if (!res.ok) return
         const data = await res.json()
         editor?.chain().focus().setImage({ src: data.url }).run()

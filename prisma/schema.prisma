@@ -115,6 +115,7 @@ model MediaAsset {
   bucket      String
   path        String
   publicUrl   String
+  userId      Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

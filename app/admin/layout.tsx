@@ -10,6 +10,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <a href="/admin/galleries">Галереи</a>
         <a href="/admin/services">Услуги</a>
         <a href="/admin/education">Обучение</a>
+        <a href="/admin/clients">Клиенты</a>
         <a href="/admin/news">Новости</a>
         <a href="/admin/lectures">Лекции и статьи</a>
         <a href="/admin/logout" className="text-red-600">Выйти</a>
