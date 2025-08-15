@@ -5,6 +5,7 @@ import RichEditor from '@/components/RichEditor'
 import SaveButton from '@/components/SaveButton'
 import { normalizeSlug } from '@/lib/slug'
 import CoverImageInput from '@/components/CoverImageInput'
+import EpubImport from '@/components/EpubImport'
 
 type Props = { params: { id: string } }
 
@@ -47,12 +48,8 @@ export default async function EditLecturePage({ params }: Props) {
         <label className="block text-sm mb-1">Содержимое</label>
         {/* lectures/YYYY/MM/DD/<slug>/pictures */}
         <script dangerouslySetInnerHTML={{ __html: `window.__uploadPrefix=()=>{const slug=document.querySelector('input[name=\"slug\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/pictures'}` }} />
-        {/* Кнопка импорта EPUB (клиентский компонент, чтобы не вкладывать form в form) */}
-        {/** @ts-expect-error async server file using client comp import below **/}
-        {(() => {
-          const EpubImport = require('@/components/EpubImport').default
-          return <EpubImport lectureId={Number(lecture.id)} slug={String(lecture.slug)} />
-        })()}
+        {/* Кнопка импорта EPUB (клиентский компонент, не вкладываем <form> внутрь <form>) */}
+        <EpubImport lectureId={Number(lecture.id)} slug={String(lecture.slug)} />
         <RichEditor name="contentHtml" defaultHtml={lecture.contentHtml ?? ''} />
       </div>
       <div className="flex gap-3">
