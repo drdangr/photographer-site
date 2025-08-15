@@ -7,7 +7,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const { data: author } = await supabase
     .from('AuthorProfile')
     .select('fullName')
-    .order('updatedAt', { ascending: false })
+    .order('id', { ascending: false })
     .limit(1)
     .maybeSingle()
   const fullName = author?.fullName || 'Автор'
@@ -22,6 +22,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <a href="/galleries" className="hover:underline">Галереи</a>
               <a href="/services" className="hover:underline">Услуги</a>
               <a href="/education" className="hover:underline">Обучение</a>
+              <a href="/lectures" className="hover:underline">Лекции и статьи</a>
               <a href="/clients" className="hover:underline">Клиентам</a>
               <a href="/admin" className="hover:underline">Админ</a>
             </nav>

@@ -3,6 +3,7 @@ import { getServerSession } from '@/lib/session'
 import { saveGallery } from '../../galleries/save'
 import ImageInput from '@/components/ImageInput'
 import MultiImageInput from '@/components/MultiImageInput'
+import SaveButton from '@/components/SaveButton'
 
 export default async function NewGalleryPage() {
   const session = await getServerSession()
@@ -33,7 +34,7 @@ export default async function NewGalleryPage() {
         <label className="block text-sm mb-1">ALT для фото (опционально)</label>
         <input name="alt" className="border rounded w-full p-2 md:w-96" />
       </div>
-      <button className="bg-slate-900 text-white px-4 py-2 rounded">Создать</button>
+      <SaveButton>Создать</SaveButton>
     </form>
   )
 }

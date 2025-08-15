@@ -4,6 +4,7 @@ import { getServerSession } from '@/lib/session'
 import { saveGallery, deleteGallery } from '../save'
 import ImageInput from '@/components/ImageInput'
 import MultiImageInput from '@/components/MultiImageInput'
+import SaveButton from '@/components/SaveButton'
 
 type Props = { params: { id: string } }
 
@@ -46,7 +47,7 @@ export default async function EditGalleryPage({ params }: Props) {
           </div>
         </div>
         <div className="flex gap-3">
-          <button className="bg-slate-900 text-white px-4 py-2 rounded">Сохранить</button>
+          <SaveButton />
           <button formAction={deleteGallery} className="text-red-600 border border-red-600 px-4 py-2 rounded">Удалить</button>
         </div>
       </form>

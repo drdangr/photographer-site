@@ -72,6 +72,16 @@ model EducationOffering {
   updatedAt   DateTime @updatedAt
 }
 
+model Lecture {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  coverUrl    String?
+  contentHtml String?  // храним HTML из TipTap
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 enum EducationKind {
   WORKSHOP
   COURSE

@@ -1,13 +1,14 @@
 import { supabase } from '@/lib/supabase'
-import ReactMarkdown from 'react-markdown'
+// Рендерим HTML, т.к. в админке используется RichEditor (Tiptap)
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export default async function AboutPage() {
   const { data } = await supabase
     .from('AuthorProfile')
     .select('*')
-    .order('updatedAt', { ascending: false })
+    .order('id', { ascending: false })
     .limit(1)
     .maybeSingle()
   const author = data || null
@@ -21,7 +22,7 @@ export default async function AboutPage() {
         {author?.fullName || 'Об авторе'}
       </h1>
       {author?.bioMarkdown ? (
-        <ReactMarkdown>{author.bioMarkdown}</ReactMarkdown>
+        <div dangerouslySetInnerHTML={{ __html: author.bioMarkdown as string }} />
       ) : (
         <p>Добавьте информацию об авторе в админ-панели.</p>
       )}

@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabaseServer'
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/session'
+import SaveButton from '@/components/SaveButton'
 
 export default async function AdminEducationPage() {
   const session = await getServerSession()
@@ -25,7 +26,7 @@ export default async function AdminEducationPage() {
           <input name="price" type="number" className="border rounded p-2 w-28" placeholder="Цена" />
           <input name="currency" className="border rounded p-2 w-24" placeholder="RUB" defaultValue="RUB" />
         </div>
-        <button className="bg-slate-900 text-white px-4 py-2 rounded">Добавить</button>
+        <SaveButton>Добавить</SaveButton>
       </form>
 
       <ul className="divide-y">
@@ -47,7 +48,7 @@ export default async function AdminEducationPage() {
                 <input name="currency" className="border rounded p-2 w-24" defaultValue={o.currency ?? 'RUB'} placeholder="RUB" />
               </div>
               <div>
-                <button className="bg-slate-900 text-white px-4 py-2 rounded">Сохранить</button>
+                <SaveButton />
               </div>
             </form>
             <div className="mt-2">

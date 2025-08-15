@@ -16,3 +16,17 @@ body {
   background: white;
 }
 
+/* Проза для публичного рендера/редактора */
+.prose :where(table) {
+  @apply table-auto w-full border-collapse;
+}
+.prose :where(th, td) {
+  @apply border px-3 py-2 align-top;
+}
+.prose :where(pre) {
+  @apply bg-slate-900 text-slate-100 p-3 rounded overflow-x-auto;
+}
+.prose :where(blockquote) {
+  @apply border-l-4 border-slate-300 pl-3 italic text-slate-700;
+}
+
