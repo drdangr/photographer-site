@@ -27,11 +27,8 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
   const editor = useEditor({
     content: defaultHtml,
     extensions: [
-      // Базовые возможности + списки
-      StarterKit.configure({
-        bulletList: true,
-        orderedList: true,
-      }),
+      // Базовые возможности
+      StarterKit,
       BulletList,
       OrderedList,
       ListItem,
