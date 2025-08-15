@@ -196,20 +196,23 @@ async function deleteClient(formData: FormData) {
   const sb = createClient(supabaseUrl, key)
 
   for (const url of uniq) {
-    // 3.1 проверяем ссылки в других местах
-    const refs: Promise<any>[] = [
-      supabaseAdmin.from('ClientPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
-      supabaseAdmin.from('ClientAuthorPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
-      supabaseAdmin.from('Photo').select('id').eq('url', url).limit(1).maybeSingle(),
-      supabaseAdmin.from('Gallery').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
-      supabaseAdmin.from('Lecture').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
-      supabaseAdmin.from('Lecture').select('id').like('contentHtml', `%${url}%`).limit(1).maybeSingle(),
-      supabaseAdmin.from('NewsItem').select('id').like('bodyMd', `%${url}%`).limit(1).maybeSingle(),
-      supabaseAdmin.from('AuthorProfile').select('id').eq('avatarUrl', url).limit(1).maybeSingle(),
-      supabaseAdmin.from('AuthorProfile').select('id').like('bioMarkdown', `%${url}%`).limit(1).maybeSingle(),
-    ]
-    const results = await Promise.allSettled(refs)
-    const anyUse = results.some((r) => r.status === 'fulfilled' && (r as any).value?.data)
+    // 3.1 проверяем ссылки в других местах (Promise-обёртка для совместимости типов)
+    const exists = async (builder: any): Promise<boolean> => {
+      const { data } = await builder
+      return !!data
+    }
+    const checks = await Promise.all([
+      exists(supabaseAdmin.from('ClientPhoto').select('id').eq('url', url).limit(1).maybeSingle()),
+      exists(supabaseAdmin.from('ClientAuthorPhoto').select('id').eq('url', url).limit(1).maybeSingle()),
+      exists(supabaseAdmin.from('Photo').select('id').eq('url', url).limit(1).maybeSingle()),
+      exists(supabaseAdmin.from('Gallery').select('id').eq('coverUrl', url).limit(1).maybeSingle()),
+      exists(supabaseAdmin.from('Lecture').select('id').eq('coverUrl', url).limit(1).maybeSingle()),
+      exists(supabaseAdmin.from('Lecture').select('id').like('contentHtml', `%${url}%`).limit(1).maybeSingle()),
+      exists(supabaseAdmin.from('NewsItem').select('id').like('bodyMd', `%${url}%`).limit(1).maybeSingle()),
+      exists(supabaseAdmin.from('AuthorProfile').select('id').eq('avatarUrl', url).limit(1).maybeSingle()),
+      exists(supabaseAdmin.from('AuthorProfile').select('id').like('bioMarkdown', `%${url}%`).limit(1).maybeSingle()),
+    ])
+    const anyUse = checks.some(Boolean)
     if (anyUse) continue
 
     // 3.2 удаляем объект из Storage и запись MediaAsset, если найдём
