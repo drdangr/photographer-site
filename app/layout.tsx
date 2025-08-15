@@ -18,6 +18,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <div className="max-w-6xl mx-auto px-4 py-6">
           <header className="flex items-center justify-end mb-8">
             <nav className="space-x-4">
+              <a href="/news" className="hover:underline">Новости</a>
               <a href="/about" className="hover:underline">Об авторе</a>
               <a href="/galleries" className="hover:underline">Галереи</a>
               <a href="/services" className="hover:underline">Услуги</a>

@@ -78,6 +78,8 @@ model Lecture {
   slug        String   @unique
   coverUrl    String?
   contentHtml String?  // храним HTML из TipTap
+  sectionId   Int?
+  displayOrder Int     @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -86,6 +88,23 @@ enum EducationKind {
   WORKSHOP
   COURSE
   ACADEMIC
+}
+
+model LectureSection {
+  id           Int      @id @default(autoincrement())
+  title        String
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model NewsItem {
+  id        Int      @id @default(autoincrement())
+  title     String
+  date      DateTime @default(now())
+  bodyMd    String   // Markdown
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 
