@@ -40,7 +40,11 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
         validate: (href) => /^https?:\/\//i.test(href) || href.startsWith('/') || href.startsWith('mailto:') || href.startsWith('tel:'),
       }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Image.configure({ inline: false, allowBase64: false }),
+      Image.configure({
+        inline: false,
+        allowBase64: false,
+        HTMLAttributes: { loading: 'lazy' },
+      }),
       Placeholder.configure({ placeholder: placeholder || 'Введите текст…' }),
       Table.configure({ resizable: false }),
       TableRow,
@@ -68,13 +72,34 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
     input.onchange = async () => {
       const file = input.files?.[0]
       if (!file) return
-      const form = new FormData()
-      form.append('file', file)
-      const res = await fetch('/api/upload', { method: 'POST', body: form })
-      if (!res.ok) return
-      const data = await res.json()
-      const url = data.url as string
-      editor?.chain().focus().setImage({ src: url }).run()
+      // 1) Получаем подписанный URL для прямой загрузки в Supabase Storage
+      const metaRes = await fetch('/api/storage/signed-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: (file as any).name || 'image' })
+      })
+      if (!metaRes.ok) return
+      const meta = await metaRes.json()
+      // 2) Загружаем файл напрямую по signed URL
+      const uploadRes = await fetch(meta.signedUrl || meta.signed_url || meta.data?.signedUrl || meta.url || meta.uploadUrl || meta.path, {
+        method: 'PUT',
+        headers: { 'x-upsert': 'true', 'content-type': (file as any).type || 'application/octet-stream', 'authorization': `Bearer ${meta.token}` },
+        body: file,
+      }).catch(() => null)
+      // SDK signed upload Url use case: нужно использовать fetch к https://.../object/sign/...?
+      if (!uploadRes || !uploadRes.ok) {
+        // fallback: наш старый API загрузки
+        const form = new FormData()
+        form.append('file', file)
+        const res = await fetch('/api/upload', { method: 'POST', body: form })
+        if (!res.ok) return
+        const data = await res.json()
+        editor?.chain().focus().setImage({ src: data.url }).run()
+        return
+      }
+      // 3) Используем publicUrl из ответа метаданных
+      const url = meta.publicUrl as string
+      if (url) editor?.chain().focus().setImage({ src: url }).run()
     }
     input.click()
   }, [editor])
