@@ -1,0 +1,55 @@
+import { NextRequest } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabaseServer'
+
+export const runtime = 'nodejs'
+
+type Body = {
+  sha256: string
+  fileName: string
+  contentType?: string
+  size?: number
+}
+
+function sanitizeFilename(originalName: string): string {
+  const extMatch = originalName.match(/\.[a-zA-Z0-9]+$/)
+  const ext = extMatch ? extMatch[0].toLowerCase() : ''
+  const base = originalName.replace(/\.[^.]*$/, '')
+  const sanitizedBase = base
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9._-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$|\.+$/g, '')
+    .slice(0, 80)
+  const stamp = Date.now()
+  return `${stamp}-${sanitizedBase || 'file'}${ext}`
+}
+
+export async function POST(request: NextRequest) {
+  const body = (await request.json().catch(() => null)) as Body | null
+  if (!body?.sha256 || !body?.fileName) return Response.json({ message: 'Bad request' }, { status: 400 })
+
+  const bucket = process.env.SUPABASE_BUCKET || 'public-images'
+
+  // 1) Проверяем наличие в справочнике
+  const { data: existing } = await supabaseAdmin
+    .from('MediaAsset')
+    .select('*')
+    .eq('sha256', body.sha256)
+    .maybeSingle()
+  if (existing) {
+    return Response.json({ reuse: true, publicUrl: existing.publicUrl })
+  }
+
+  // 2) Готовим путь и подписанный URL
+  const d = new Date()
+  const folder = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
+  const filename = sanitizeFilename(body.fileName)
+  const path = `${folder}/${filename}`
+  const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUploadUrl(path)
+  if (error || !data) return Response.json({ message: error?.message || 'Cannot sign' }, { status: 500 })
+  const publicUrl = supabaseAdmin.storage.from(bucket).getPublicUrl(path).data.publicUrl
+  return Response.json({ reuse: false, bucket, path, token: data.token, publicUrl, sha256: body.sha256, size: body.size || 0, contentType: body.contentType || null })
+}
+
+

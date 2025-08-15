@@ -107,4 +107,16 @@ model NewsItem {
   updatedAt DateTime @updatedAt
 }
 
+model MediaAsset {
+  id          Int      @id @default(autoincrement())
+  sha256      String   @unique
+  size        Int
+  contentType String?
+  bucket      String
+  path        String
+  publicUrl   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 
