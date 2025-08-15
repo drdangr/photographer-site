@@ -5,19 +5,22 @@ import { supabaseAdmin } from '@/lib/supabaseServer'
 async function removeUrlFromStorageIfUnused(url: string) {
   if (!url) return
   // Проверяем использование URL в других сущностях
-  const checks: Promise<any>[] = [
-    supabaseAdmin.from('ClientPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
-    supabaseAdmin.from('ClientAuthorPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
-    supabaseAdmin.from('Photo').select('id').eq('url', url).limit(1).maybeSingle(),
-    supabaseAdmin.from('Gallery').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
-    supabaseAdmin.from('Lecture').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
-    supabaseAdmin.from('Lecture').select('id').like('contentHtml', `%${url}%`).limit(1).maybeSingle(),
-    supabaseAdmin.from('NewsItem').select('id').like('bodyMd', `%${url}%`).limit(1).maybeSingle(),
-    supabaseAdmin.from('AuthorProfile').select('id').eq('avatarUrl', url).limit(1).maybeSingle(),
-    supabaseAdmin.from('AuthorProfile').select('id').like('bioMarkdown', `%${url}%`).limit(1).maybeSingle(),
-  ]
-  const results = await Promise.allSettled(checks)
-  const stillUsed = results.some((r) => r.status === 'fulfilled' && (r as any).value?.data)
+  const exists = async (builder: any): Promise<boolean> => {
+    const { data } = await builder
+    return !!data
+  }
+  const results = await Promise.all([
+    exists(supabaseAdmin.from('ClientPhoto').select('id').eq('url', url).limit(1).maybeSingle()),
+    exists(supabaseAdmin.from('ClientAuthorPhoto').select('id').eq('url', url).limit(1).maybeSingle()),
+    exists(supabaseAdmin.from('Photo').select('id').eq('url', url).limit(1).maybeSingle()),
+    exists(supabaseAdmin.from('Gallery').select('id').eq('coverUrl', url).limit(1).maybeSingle()),
+    exists(supabaseAdmin.from('Lecture').select('id').eq('coverUrl', url).limit(1).maybeSingle()),
+    exists(supabaseAdmin.from('Lecture').select('id').like('contentHtml', `%${url}%`).limit(1).maybeSingle()),
+    exists(supabaseAdmin.from('NewsItem').select('id').like('bodyMd', `%${url}%`).limit(1).maybeSingle()),
+    exists(supabaseAdmin.from('AuthorProfile').select('id').eq('avatarUrl', url).limit(1).maybeSingle()),
+    exists(supabaseAdmin.from('AuthorProfile').select('id').like('bioMarkdown', `%${url}%`).limit(1).maybeSingle()),
+  ])
+  const stillUsed = results.some(Boolean)
   if (stillUsed) return
 
   // Попытка удалить через MediaAsset, если есть
