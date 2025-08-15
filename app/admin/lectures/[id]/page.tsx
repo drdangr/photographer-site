@@ -102,19 +102,22 @@ async function save(formData: FormData) {
         return { bucket: b, path: rest.join('/') }
       }
       const stillUsed = async (url: string) => {
-        const checks: Promise<any>[] = [
-          supabaseAdmin.from('Lecture').select('id').neq('id', id).like('contentHtml', `%${url}%`).limit(1).maybeSingle(),
-          supabaseAdmin.from('Lecture').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
-          supabaseAdmin.from('NewsItem').select('id').like('bodyMd', `%${url}%`).limit(1).maybeSingle(),
-          supabaseAdmin.from('Gallery').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
-          supabaseAdmin.from('Photo').select('id').eq('url', url).limit(1).maybeSingle(),
-          supabaseAdmin.from('ClientPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
-          supabaseAdmin.from('ClientAuthorPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
-          supabaseAdmin.from('AuthorProfile').select('id').eq('avatarUrl', url).limit(1).maybeSingle(),
-          supabaseAdmin.from('AuthorProfile').select('id').like('bioMarkdown', `%${url}%`).limit(1).maybeSingle(),
-        ]
-        const res = await Promise.allSettled(checks)
-        return res.some((r) => r.status === 'fulfilled' && (r as any).value?.data)
+        const exists = async (builder: any): Promise<boolean> => {
+          const { data } = await builder
+          return !!data
+        }
+        const checks = await Promise.all([
+          exists(supabaseAdmin.from('Lecture').select('id').neq('id', id).like('contentHtml', `%${url}%`).limit(1).maybeSingle()),
+          exists(supabaseAdmin.from('Lecture').select('id').eq('coverUrl', url).limit(1).maybeSingle()),
+          exists(supabaseAdmin.from('NewsItem').select('id').like('bodyMd', `%${url}%`).limit(1).maybeSingle()),
+          exists(supabaseAdmin.from('Gallery').select('id').eq('coverUrl', url).limit(1).maybeSingle()),
+          exists(supabaseAdmin.from('Photo').select('id').eq('url', url).limit(1).maybeSingle()),
+          exists(supabaseAdmin.from('ClientPhoto').select('id').eq('url', url).limit(1).maybeSingle()),
+          exists(supabaseAdmin.from('ClientAuthorPhoto').select('id').eq('url', url).limit(1).maybeSingle()),
+          exists(supabaseAdmin.from('AuthorProfile').select('id').eq('avatarUrl', url).limit(1).maybeSingle()),
+          exists(supabaseAdmin.from('AuthorProfile').select('id').like('bioMarkdown', `%${url}%`).limit(1).maybeSingle()),
+        ])
+        return checks.some(Boolean)
       }
       const toProcess = new Set<string>(removed)
       const prevCover: string | null = ((beforeRow as any)?.coverUrl as string) || null
@@ -162,19 +165,22 @@ async function remove(formData: FormData) {
       return arr
     }
     const stillUsed = async (url: string) => {
-      const checks: Promise<any>[] = [
-        supabaseAdmin.from('Lecture').select('id').neq('id', id).like('contentHtml', `%${url}%`).limit(1).maybeSingle(),
-        supabaseAdmin.from('Lecture').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
-        supabaseAdmin.from('NewsItem').select('id').like('bodyMd', `%${url}%`).limit(1).maybeSingle(),
-        supabaseAdmin.from('Gallery').select('id').eq('coverUrl', url).limit(1).maybeSingle(),
-        supabaseAdmin.from('Photo').select('id').eq('url', url).limit(1).maybeSingle(),
-        supabaseAdmin.from('ClientPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
-        supabaseAdmin.from('ClientAuthorPhoto').select('id').eq('url', url).limit(1).maybeSingle(),
-        supabaseAdmin.from('AuthorProfile').select('id').eq('avatarUrl', url).limit(1).maybeSingle(),
-        supabaseAdmin.from('AuthorProfile').select('id').like('bioMarkdown', `%${url}%`).limit(1).maybeSingle(),
-      ]
-      const res = await Promise.allSettled(checks)
-      return res.some((r) => r.status === 'fulfilled' && (r as any).value?.data)
+      const exists = async (builder: any): Promise<boolean> => {
+        const { data } = await builder
+        return !!data
+      }
+      const checks = await Promise.all([
+        exists(supabaseAdmin.from('Lecture').select('id').neq('id', id).like('contentHtml', `%${url}%`).limit(1).maybeSingle()),
+        exists(supabaseAdmin.from('Lecture').select('id').eq('coverUrl', url).limit(1).maybeSingle()),
+        exists(supabaseAdmin.from('NewsItem').select('id').like('bodyMd', `%${url}%`).limit(1).maybeSingle()),
+        exists(supabaseAdmin.from('Gallery').select('id').eq('coverUrl', url).limit(1).maybeSingle()),
+        exists(supabaseAdmin.from('Photo').select('id').eq('url', url).limit(1).maybeSingle()),
+        exists(supabaseAdmin.from('ClientPhoto').select('id').eq('url', url).limit(1).maybeSingle()),
+        exists(supabaseAdmin.from('ClientAuthorPhoto').select('id').eq('url', url).limit(1).maybeSingle()),
+        exists(supabaseAdmin.from('AuthorProfile').select('id').eq('avatarUrl', url).limit(1).maybeSingle()),
+        exists(supabaseAdmin.from('AuthorProfile').select('id').like('bioMarkdown', `%${url}%`).limit(1).maybeSingle()),
+      ])
+      return checks.some(Boolean)
     }
     const urls = new Set<string>(extract((row as any)?.contentHtml || ''))
     const cov: string | null = ((row as any)?.coverUrl as string) || null
