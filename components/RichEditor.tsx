@@ -38,7 +38,7 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
       Image.configure({
         inline: false,
         allowBase64: false,
-        HTMLAttributes: { loading: 'lazy' },
+        HTMLAttributes: { loading: 'lazy', style: 'display:block;max-width:100%;width:100%;height:auto;' },
       }),
       Placeholder.configure({ placeholder: placeholder || 'Введите текст…' }),
       Table.configure({ resizable: false }),
@@ -51,6 +51,12 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
     editorProps: {
       attributes: {
         class: 'prose max-w-none p-3 min-h-[220px] border rounded focus:outline-none',
+        'data-gramm': 'false',
+        'data-gramm_editor': 'false',
+        'data-enable-grammarly': 'false',
+        spellCheck: 'false',
+        autoCorrect: 'off',
+        autoCapitalize: 'off',
       },
     },
     onUpdate: ({ editor }) => {
