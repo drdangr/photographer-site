@@ -126,7 +126,7 @@ export default async function AdminClientsPage() {
         </thead>
         <tbody>
           {items.map((u) => (
-            <tr key={u.id}>
+            <tr key={u.uid}>
               <td className="p-2 border align-top">{u.email}</td>
               <td className="p-2 border align-top">{formatBytes(u.bytes_total || 0)}</td>
               <td className="p-2 border align-top">{u.last_upload ? new Date(u.last_upload).toLocaleString('ru-RU') : '—'}</td>
