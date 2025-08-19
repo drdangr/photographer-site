@@ -5,6 +5,7 @@ import RichEditor from '@/components/RichEditor'
 import SaveButton from '@/components/SaveButton'
 import { normalizeSlug } from '@/lib/slug'
 import CoverImageInput from '@/components/CoverImageInput'
+import EpubImport from '@/components/EpubImport'
 
 export default async function NewLecturePage() {
   const session = await getServerSession()
@@ -35,12 +36,13 @@ export default async function NewLecturePage() {
         </select>
       </div>
       {/* lectures/YYYY/MM/DD/<slug>/covers */}
-      <script dangerouslySetInnerHTML={{ __html: `window.__uploadCoverPrefix=()=>{const slug=document.querySelector('input[name=\\"slug\\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/covers'}` }} />
+      <script dangerouslySetInnerHTML={{ __html: `window.__uploadCoverPrefix=()=>{const slug=document.querySelector('input[name=\"slug\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/covers'}` }} />
       <CoverImageInput name="coverUrl" label="Обложка (URL или загрузка файла)" />
       <div>
         <label className="block text-sm mb-1">Содержимое</label>
         {/* lectures/YYYY/MM/DD/<slug>/pictures */}
-        <script dangerouslySetInnerHTML={{ __html: `window.__uploadPrefix=()=>{const slug=document.querySelector('input[name=\\"slug\\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/pictures'}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `window.__uploadPrefix=()=>{const slug=document.querySelector('input[name=\"slug\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/pictures'}` }} />
+        <EpubImport lectureId={0 as any} slug={'' as any} />
         <RichEditor name="contentHtml" />
       </div>
       <SaveButton />
