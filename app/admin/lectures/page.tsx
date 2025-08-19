@@ -9,13 +9,13 @@ export default async function AdminLecturesPage() {
   if (!session.userId) redirect('/admin/login')
   const { data: sections } = await supabaseAdmin
     .from('LectureSection')
-    .select('*')
+    .select('id,title,displayOrder,public')
     .order('displayOrder', { ascending: true })
     .order('title', { ascending: true })
   const sectionsList = sections ?? []
   const { data: lectures } = await supabaseAdmin
     .from('Lecture')
-    .select('id,title,slug,sectionId,displayOrder')
+    .select('id,title,slug,sectionId,displayOrder,public')
     .order('sectionId', { ascending: true })
     .order('displayOrder', { ascending: true })
   const items = lectures ?? []
@@ -47,6 +47,12 @@ export default async function AdminLecturesPage() {
                 <SaveButton />
               </form>
               <div className="flex items-center gap-2">
+                <form action={toggleSectionPublic}>
+                  <input type="hidden" name="id" defaultValue={s.id} />
+                  <button className="px-2 py-1 border rounded" title={s.public ? 'Сделать скрытым' : 'Сделать публичным'}>
+                    {s.public ? '👁️' : '🙈'}
+                  </button>
+                </form>
                 <form action={moveSectionUp}><input type="hidden" name="id" defaultValue={s.id} /><button className="px-2 py-1 border rounded" title="Вверх">▲</button></form>
                 <form action={moveSectionDown}><input type="hidden" name="id" defaultValue={s.id} /><button className="px-2 py-1 border rounded" title="Вниз">▼</button></form>
                 <form action={deleteSection}>
@@ -61,7 +67,7 @@ export default async function AdminLecturesPage() {
       <div className="space-y-6">
         {sectionsList.map((s: any) => (
           <section key={s.id}>
-            <h2 className="text-lg font-semibold mb-2">{s.title}</h2>
+            <h2 className="text-lg font-semibold mb-2">{s.title} <span className="text-xs align-middle px-2 py-0.5 rounded border ml-2">{s.public ? 'публичный' : 'скрытый'}</span></h2>
             <ul className="divide-y">
               {items.filter((l) => l.sectionId === s.id).map((l) => (
                 <li key={l.id} className="py-3 flex items-center justify-between">
@@ -70,6 +76,7 @@ export default async function AdminLecturesPage() {
                     <div className="text-sm text-slate-500 truncate">/{l.slug}</div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <form action={toggleLecturePublic}><input type="hidden" name="id" defaultValue={l.id} /><button className="px-2 py-1 border rounded" title={l.public ? 'Сделать скрытой' : 'Сделать публичной'}>{l.public ? '👁️' : '🙈'}</button></form>
                     <form action={moveUp}><input type="hidden" name="id" defaultValue={l.id} /><button className="px-2 py-1 border rounded" title="Вверх">▲</button></form>
                     <form action={moveDown}><input type="hidden" name="id" defaultValue={l.id} /><button className="px-2 py-1 border rounded" title="Вниз">▼</button></form>
                     <a className="underline" href={`/admin/lectures/${l.id}`}>Редактировать</a>
@@ -90,6 +97,7 @@ export default async function AdminLecturesPage() {
                   <div className="text-sm text-slate-500 truncate">/{l.slug}</div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <form action={toggleLecturePublic}><input type="hidden" name="id" defaultValue={l.id} /><button className="px-2 py-1 border rounded" title={l.public ? 'Сделать скрытой' : 'Сделать публичной'}>{l.public ? '👁️' : '🙈'}</button></form>
                   <form action={moveUp}><input type="hidden" name="id" defaultValue={l.id} /><button className="px-2 py-1 border rounded" title="Вверх">▲</button></form>
                   <form action={moveDown}><input type="hidden" name="id" defaultValue={l.id} /><button className="px-2 py-1 border rounded" title="Вниз">▼</button></form>
                   <a className="underline" href={`/admin/lectures/${l.id}`}>Редактировать</a>
@@ -194,6 +202,24 @@ async function updateSection(formData: FormData) {
   revalidatePath('/admin/lectures')
 }
 
+async function toggleSectionPublic(formData: FormData) {
+  'use server'
+  const id = Number(formData.get('id'))
+  if (!id) return
+  const { data: row } = await supabaseAdmin
+    .from('LectureSection')
+    .select('id, public')
+    .eq('id', id)
+    .maybeSingle()
+  if (!row) return
+  const next = !(row as any).public
+  await supabaseAdmin.from('LectureSection').update({ public: next }).eq('id', id).limit(1)
+  if (!next) {
+    await supabaseAdmin.from('Lecture').update({ public: false }).eq('sectionId', id)
+  }
+  revalidatePath('/admin/lectures')
+}
+
 async function deleteSection(formData: FormData) {
   'use server'
   const id = Number(formData.get('id'))
@@ -251,6 +277,21 @@ async function moveSectionDown(formData: FormData) {
   const next = rows[idx + 1]
   await supabaseAdmin.from('LectureSection').update({ displayOrder: next.displayOrder }).eq('id', curr.id).limit(1)
   await supabaseAdmin.from('LectureSection').update({ displayOrder: curr.displayOrder }).eq('id', next.id).limit(1)
+  revalidatePath('/admin/lectures')
+}
+
+async function toggleLecturePublic(formData: FormData) {
+  'use server'
+  const id = Number(formData.get('id'))
+  if (!id) return
+  const { data: row } = await supabaseAdmin
+    .from('Lecture')
+    .select('id, public')
+    .eq('id', id)
+    .maybeSingle()
+  if (!row) return
+  const next = !(row as any).public
+  await supabaseAdmin.from('Lecture').update({ public: next }).eq('id', id).limit(1)
   revalidatePath('/admin/lectures')
 }
 

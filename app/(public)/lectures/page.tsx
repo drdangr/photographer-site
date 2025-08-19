@@ -8,12 +8,14 @@ export default async function LecturesListPage() {
   const { data: sections } = await supabase
     .from('LectureSection')
     .select('id,title')
+    .eq('public', true)
     .order('displayOrder', { ascending: true })
     .order('title', { ascending: true })
   const sectionsList = sections ?? []
   const { data: lectures } = await supabase
     .from('Lecture')
-    .select('id,title,slug,coverUrl,sectionId,displayOrder')
+    .select('id,title,slug,coverUrl,sectionId,displayOrder,public')
+    .eq('public', true)
     .order('sectionId', { ascending: true })
     .order('displayOrder', { ascending: true })
     .order('id', { ascending: true })

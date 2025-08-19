@@ -35,6 +35,10 @@ export default async function NewLecturePage() {
           ))}
         </select>
       </div>
+      <div className="flex items-center gap-2">
+        <label className="block text-sm">Публичная</label>
+        <input type="checkbox" name="public" defaultChecked={true} />
+      </div>
       {/* lectures/YYYY/MM/DD/<slug>/covers */}
       <script dangerouslySetInnerHTML={{ __html: `window.__uploadCoverPrefix=()=>{const slug=document.querySelector('input[name=\"slug\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/covers'}` }} />
       <CoverImageInput name="coverUrl" label="Обложка (URL или загрузка файла)" />
@@ -58,6 +62,8 @@ async function save(formData: FormData) {
   const contentHtml = String(formData.get('contentHtml') || '') || null
   const sectionIdRaw = formData.get('sectionId')
   const sectionId = sectionIdRaw ? Number(sectionIdRaw) : null
+  const publicRaw = formData.get('public')
+  const isPublic = publicRaw ? true : false
   if (!title || !slug) return
   const safeSlug = normalizeSlug(slug)
   let displayOrder = 0
@@ -71,7 +77,7 @@ async function save(formData: FormData) {
       .maybeSingle()
     displayOrder = ((maxRow?.displayOrder as number) ?? 0) + 1
   }
-  await supabaseAdmin.from('Lecture').insert({ title, slug: safeSlug, coverUrl, contentHtml, sectionId, displayOrder })
+  await supabaseAdmin.from('Lecture').insert({ title, slug: safeSlug, coverUrl, contentHtml, sectionId, displayOrder, public: isPublic })
   redirect('/admin/lectures')
 }
 

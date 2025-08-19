@@ -41,6 +41,10 @@ export default async function EditLecturePage({ params }: Props) {
           ))}
         </select>
       </div>
+      <div className="flex items-center gap-2">
+        <label className="block text-sm">Публичная</label>
+        <input type="checkbox" name="public" defaultChecked={(lecture as any).public ?? true} />
+      </div>
       {/* lectures/YYYY/MM/DD/<slug>/covers */}
       <script dangerouslySetInnerHTML={{ __html: `window.__uploadCoverPrefix=()=>{const slug=document.querySelector('input[name=\\"slug\\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/covers'}` }} />
       <CoverImageInput name="coverUrl" label="Обложка (URL или загрузка файла)" defaultValue={lecture.coverUrl ?? ''} />
@@ -69,12 +73,14 @@ async function save(formData: FormData) {
   const contentHtml = String(formData.get('contentHtml') || '') || null
   const sectionIdRaw = formData.get('sectionId')
   const sectionId = sectionIdRaw ? Number(sectionIdRaw) : null
+  const publicRaw = formData.get('public')
+  const isPublic = publicRaw ? true : false
   if (!id || !title || !slug) return
   // До обновления получаем прежний HTML, чтобы найти удалённые ссылки
   const { data: beforeRow } = await supabaseAdmin.from('Lecture').select('contentHtml, coverUrl').eq('id', id).maybeSingle()
   await supabaseAdmin
     .from('Lecture')
-    .update({ title, slug: normalizeSlug(slug), coverUrl, contentHtml, sectionId })
+    .update({ title, slug: normalizeSlug(slug), coverUrl, contentHtml, sectionId, public: isPublic })
     .eq('id', id)
     .limit(1)
   // Безопасно чистим файлы, удалённые из HTML/сменённую обложку, если они больше нигде не используются

@@ -9,8 +9,9 @@ export const runtime = 'nodejs'
 export default async function LecturePage({ params }: Props) {
   const { data: lecture } = await supabase
     .from('Lecture')
-    .select('*')
+    .select('id,title,slug,coverUrl,contentHtml,public,sectionId')
     .eq('slug', decodeURIComponent(params.slug))
+    .eq('public', true)
     .maybeSingle()
   if (!lecture) return <div className="text-sm text-slate-600">Материал не найден</div>
   return (
