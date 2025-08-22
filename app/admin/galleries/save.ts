@@ -11,6 +11,7 @@ export async function saveGallery(formData: FormData) {
   const coverUrl = String(formData.get('coverUrl') || '') || null
   const photosJson = String(formData.get('photosJson') || '[]')
   const alt = String(formData.get('alt') || '') || null
+  const altsJson = String(formData.get('altsJson') || '[]')
   const displayOrderRaw = formData.get('displayOrder')
   const displayOrder = displayOrderRaw !== null && displayOrderRaw !== '' ? Number(displayOrderRaw) : undefined
   const nowIso = new Date().toISOString()
@@ -63,6 +64,7 @@ export async function saveGallery(formData: FormData) {
   if (photosJson) {
     try {
       const parsed = JSON.parse(photosJson)
+      const parsedAlts = JSON.parse(altsJson || '[]')
       if (Array.isArray(parsed) && parsed.length > 0) {
         const { data: maxRow } = await supabaseAdmin
           .from('Photo')
@@ -74,7 +76,13 @@ export async function saveGallery(formData: FormData) {
         let order = ((maxRow?.order as number) ?? 0) + 1
         const urls: string[] = parsed.filter((u) => typeof u === 'string' && u.length > 0)
         if (urls.length > 0) {
-          await supabaseAdmin.from('Photo').insert(urls.map((u) => ({ galleryId: gallery.id, url: u, alt, order: order++ })))
+          const rows = urls.map((u, i) => ({
+            galleryId: gallery.id,
+            url: u,
+            alt: (Array.isArray(parsedAlts) && typeof parsedAlts[i] === 'string' && parsedAlts[i].trim().length > 0) ? parsedAlts[i] : alt,
+            order: order++
+          }))
+          await supabaseAdmin.from('Photo').insert(rows)
         }
       }
     } catch {

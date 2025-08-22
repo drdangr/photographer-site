@@ -56,9 +56,6 @@ export default function ImageInput({ name, label, defaultValue, prefix, galleryI
           onChange={(e) => setUrl(e.target.value)}
         />
         <input type="file" accept="image/*" onChange={onFileChange} />
-        <button type="button" disabled className="px-3 py-1.5 rounded border">
-          {uploading ? 'Загрузка…' : 'Файл'}
-        </button>
       </div>
       {error && <div className="text-sm text-red-600 mt-1">{error}</div>}
       {url && (

@@ -7,6 +7,7 @@ import ImageInput from '@/components/ImageInput'
 import MultiImageInput from '@/components/MultiImageInput'
 import SaveButton from '@/components/SaveButton'
 import { isYouTubeUrl, parseYouTubeId, youtubeThumbUrl } from '@/lib/youtube'
+import { revalidatePath as _revalidate } from 'next/cache'
 
 type Props = { params: { id: string } }
 
@@ -66,27 +67,41 @@ export default async function EditGalleryPage({ params }: Props) {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
              {(photos || []).map((p) => (
-              <form key={p.id} action={deletePhoto} className="relative group border rounded overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={(isYouTubeUrl(p.url) && parseYouTubeId(p.url)) ? youtubeThumbUrl(parseYouTubeId(p.url) as string) : p.url}
-                  alt={p.alt ?? ''}
-                  className="w-full h-40 object-cover"
-                />
-                {isYouTubeUrl(p.url) && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="inline-block bg-black/50 text-white rounded-full w-8 h-8 text-center leading-8">▶</span>
-                  </div>
-                )}
-                <input type="hidden" name="photoId" defaultValue={p.id} />
-                <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-xs px-2 py-1 flex justify-between">
-                  <span className="truncate mr-2">{p.alt ?? ''}</span>
-                  <span>#{p.order}</span>
+              <form key={p.id} action={updatePhotoAlt} className="relative group border rounded overflow-hidden p-0">
+                <button type="submit" formAction={updatePhotoAlt} className="hidden" aria-hidden="true" />
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={(isYouTubeUrl(p.url) && parseYouTubeId(p.url)) ? youtubeThumbUrl(parseYouTubeId(p.url) as string) : p.url}
+                    alt={p.alt ?? ''}
+                    className="w-full h-40 object-cover"
+                  />
+                  {isYouTubeUrl(p.url) && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <span className="inline-block bg-black/50 text-white rounded-full w-8 h-8 text-center leading-8">▶</span>
+                    </div>
+                  )}
+                  <button
+                    type="submit"
+                    title="Удалить"
+                    formAction={deletePhoto}
+                    className="absolute top-1 right-1 hidden group-hover:block bg-white/90 text-red-600 border border-red-600 rounded px-2 leading-none"
+                  >
+                    ×
+                  </button>
                 </div>
-                <button type="submit" title="Удалить"
-                  className="absolute top-1 right-1 hidden group-hover:block bg-white/90 text-red-600 border border-red-600 rounded px-2 leading-none">
-                  ×
-                </button>
+                <input type="hidden" name="photoId" defaultValue={p.id} />
+                <div className="p-2 bg-white">
+                  <input
+                    name="alt"
+                    defaultValue={p.alt ?? ''}
+                    placeholder="ALT"
+                    className="border rounded p-1 w-full text-xs"
+                  />
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-slate-600">#{p.order}</span>
+                  </div>
+                </div>
               </form>
             ))}
           </div>
@@ -139,6 +154,19 @@ async function deletePhoto(formData: FormData) {
       }
     }
   } catch {}
+  if (photo?.galleryId) {
+    revalidatePath(`/admin/galleries/${photo.galleryId}`)
+    redirect(`/admin/galleries/${photo.galleryId}`)
+  }
+}
+
+async function updatePhotoAlt(formData: FormData) {
+  'use server'
+  const photoId = Number(formData.get('photoId'))
+  const alt = String(formData.get('alt') || '') || null
+  if (!photoId) return
+  await supabaseAdmin.from('Photo').update({ alt }).eq('id', photoId).limit(1)
+  const { data: photo } = await supabaseAdmin.from('Photo').select('galleryId').eq('id', photoId).maybeSingle()
   if (photo?.galleryId) {
     revalidatePath(`/admin/galleries/${photo.galleryId}`)
     redirect(`/admin/galleries/${photo.galleryId}`)
