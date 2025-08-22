@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { isYouTubeUrl, parseYouTubeId, youtubeThumbUrl } from '@/lib/youtube'
 
 type Props = {
   name: string // имя скрытого поля, куда положим JSON со списком URL
@@ -62,7 +63,7 @@ export default function MultiImageInput({ name, label, prefix, galleryId }: Prop
       <input type="hidden" name={name} value={JSON.stringify(urls)} readOnly />
       <div className="flex items-center gap-2 mb-2">
         <input
-          placeholder="вставьте URL изображения"
+          placeholder="вставьте URL изображения или YouTube-ссылку"
           className="border rounded p-2 flex-1"
           value={urlToAdd}
           onChange={(e) => setUrlToAdd(e.target.value)}
@@ -79,7 +80,16 @@ export default function MultiImageInput({ name, label, prefix, galleryId }: Prop
           {urls.map((u, i) => (
             <div key={`${u}-${i}`} className="relative group">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={u} alt="pre" className="h-20 w-full object-cover rounded border" />
+              <img
+                src={(isYouTubeUrl(u) && parseYouTubeId(u)) ? youtubeThumbUrl(parseYouTubeId(u) as string) : u}
+                alt="pre"
+                className="h-20 w-full object-cover rounded border"
+              />
+              {isYouTubeUrl(u) && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="inline-block bg-black/50 text-white rounded-full w-6 h-6 text-center leading-6">▶</span>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => removeAt(i)}

@@ -6,6 +6,7 @@ import { saveGallery, deleteGallery } from '../save'
 import ImageInput from '@/components/ImageInput'
 import MultiImageInput from '@/components/MultiImageInput'
 import SaveButton from '@/components/SaveButton'
+import { isYouTubeUrl, parseYouTubeId, youtubeThumbUrl } from '@/lib/youtube'
 
 type Props = { params: { id: string } }
 
@@ -67,7 +68,16 @@ export default async function EditGalleryPage({ params }: Props) {
              {(photos || []).map((p) => (
               <form key={p.id} action={deletePhoto} className="relative group border rounded overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt={p.alt ?? ''} className="w-full h-40 object-cover" />
+                <img
+                  src={(isYouTubeUrl(p.url) && parseYouTubeId(p.url)) ? youtubeThumbUrl(parseYouTubeId(p.url) as string) : p.url}
+                  alt={p.alt ?? ''}
+                  className="w-full h-40 object-cover"
+                />
+                {isYouTubeUrl(p.url) && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="inline-block bg-black/50 text-white rounded-full w-8 h-8 text-center leading-8">▶</span>
+                  </div>
+                )}
                 <input type="hidden" name="photoId" defaultValue={p.id} />
                 <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-xs px-2 py-1 flex justify-between">
                   <span className="truncate mr-2">{p.alt ?? ''}</span>

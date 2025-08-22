@@ -1,5 +1,6 @@
 "use client"
 import { useEffect } from 'react'
+import { isYouTubeUrl, parseYouTubeId, youtubeEmbedUrl } from '@/lib/youtube'
 
 type Item = { url: string; caption?: string | null }
 
@@ -38,8 +39,18 @@ export default function Lightbox({ items, index, onClose, onIndexChange }: {
         >
           ‹
         </button>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={current.url} alt="" className="max-h-[80vh] max-w-[95vw] object-contain" />
+        {isYouTubeUrl(current.url) && parseYouTubeId(current.url) ? (
+          <iframe
+            className="w-[95vw] max-w-[1200px] aspect-video"
+            src={youtubeEmbedUrl(parseYouTubeId(current.url) as string) + '?autoplay=1'}
+            title="YouTube video player"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={current.url} alt="" className="max-h-[80vh] max-w-[95vw] object-contain" />
+        )}
         <button
           className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 rounded px-3 py-2"
           onClick={() => onIndexChange((index + 1) % items.length)}

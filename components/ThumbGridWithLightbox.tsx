@@ -1,6 +1,7 @@
 "use client"
 import { useState } from 'react'
 import Lightbox from './Lightbox'
+import { isYouTubeUrl, parseYouTubeId, youtubeThumbUrl } from '@/lib/youtube'
 
 type Item = { url: string; caption?: string | null }
 
@@ -13,11 +14,16 @@ export default function ThumbGridWithLightbox({ items }: { items: Item[] }) {
           <div key={i} className="flex flex-col items-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={p.url}
+              src={(isYouTubeUrl(p.url) && parseYouTubeId(p.url)) ? youtubeThumbUrl(parseYouTubeId(p.url) as string) : p.url}
               alt=""
               className="w-full h-48 object-cover rounded border cursor-zoom-in"
               onClick={() => setOpen({ open: true, index: i })}
             />
+            {isYouTubeUrl(p.url) && (
+              <div className="-mt-12 mb-8 pointer-events-none">
+                <span className="inline-block bg-black/60 text-white rounded-full w-10 h-10 text-center leading-10">▶</span>
+              </div>
+            )}
             {p.caption && p.caption.trim().length > 0 && (
               <div className="mt-1 text-base text-slate-800 text-center" title={p.caption || ''}>{p.caption}</div>
             )}
