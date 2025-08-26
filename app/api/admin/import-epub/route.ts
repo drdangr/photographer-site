@@ -39,13 +39,45 @@ function sanitize(html: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const form = await req.formData()
-    const file = form.get('file') as unknown as File | null
-    const lectureId = Number(form.get('lectureId') || 0)
-    const slug = String(form.get('slug') || '')
-    if (!file || !lectureId || !slug) return Response.json({ message: 'Bad request' }, { status: 400 })
+    const contentType = req.headers.get('content-type') || ''
+    let lectureId = 0
+    let slug = ''
+    let buffer: Buffer | null = null
 
-    const buffer = Buffer.from(await file.arrayBuffer())
+    if (contentType.includes('application/json')) {
+      const body = (await req.json().catch(() => null)) as any
+      lectureId = Number(body?.lectureId || 0)
+      slug = String(body?.slug || '')
+      const bucket = String(body?.bucket || process.env.SUPABASE_BUCKET || 'public-images')
+      const path = String(body?.path || '')
+      const fileUrl = typeof body?.fileUrl === 'string' ? (body.fileUrl as string) : ''
+      if (!lectureId || !slug || (!path && !fileUrl)) return Response.json({ message: 'Bad request' }, { status: 400 })
+      if (fileUrl) {
+        const resp = await fetch(fileUrl)
+        if (!resp.ok) return Response.json({ message: 'Cannot download file' }, { status: 400 })
+        const arr = await resp.arrayBuffer()
+        buffer = Buffer.from(arr)
+      } else {
+        const { createClient } = await import('@supabase/supabase-js')
+        const sb = createClient(
+          process.env.SUPABASE_URL as string,
+          (process.env.SUPABASE_SERVICE_ROLE_KEY as string) || (process.env.SUPABASE_ANON_KEY as string)
+        )
+        const { data: blob, error } = await sb.storage.from(bucket).download(path)
+        if (error || !blob) return Response.json({ message: error?.message || 'Cannot download file' }, { status: 500 })
+        const arr = await (blob as Blob).arrayBuffer()
+        buffer = Buffer.from(arr)
+      }
+    } else {
+      const form = await req.formData()
+      const file = form.get('file') as unknown as File | null
+      lectureId = Number(form.get('lectureId') || 0)
+      slug = String(form.get('slug') || '')
+      if (!file || !lectureId || !slug) return Response.json({ message: 'Bad request' }, { status: 400 })
+      buffer = Buffer.from(await (file as any).arrayBuffer())
+    }
+
+    if (!buffer) return Response.json({ message: 'No file' }, { status: 400 })
     const zip = await JSZip.loadAsync(buffer)
 
     // 1) Читаем контейнер и OPF
