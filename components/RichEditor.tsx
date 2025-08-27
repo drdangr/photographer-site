@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { TextSelection } from 'prosemirror-state'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -23,6 +24,10 @@ type Props = {
 export default function RichEditor({ name, defaultHtml = '', placeholder }: Props) {
   const [html, setHtml] = useState<string>(defaultHtml)
   const hiddenRef = useRef<HTMLInputElement>(null)
+  const [showFind, setShowFind] = useState(false)
+  const [findText, setFindText] = useState('')
+  const [replaceText, setReplaceText] = useState('')
+  const [matchCase, setMatchCase] = useState(false)
   const editor = useEditor({
     content: defaultHtml,
     extensions: [
@@ -130,6 +135,112 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
     editor?.chain().focus().unsetAllMarks().clearNodes().run()
   }, [editor])
 
+  const onCleanupBreaks = useCallback(() => {
+    if (!editor) return
+    // A) Удаляем подряд идущие пустые параграфы на уровне узлов документа
+    const toDelete: Array<{ from: number; to: number }> = []
+    let run: Array<{ from: number; to: number }> = []
+    const flush = () => {
+      if (run.length > 1) {
+        // оставляем один пустой параграф, остальные удаляем
+        for (let i = 1; i < run.length; i++) toDelete.push(run[i])
+      }
+      run = []
+    }
+    const isEmptyPara = (node: any) => (node?.type?.name === 'paragraph') && ((node.textContent || '').replace(/\u00A0/g, ' ').trim() === '')
+    editor.state.doc.descendants((node: any, pos: number) => {
+      if (node?.type?.name === 'paragraph') {
+        if (isEmptyPara(node)) run.push({ from: pos, to: pos + node.nodeSize })
+        else flush()
+      } else if (node.isBlock) {
+        flush()
+      }
+      return true
+    })
+    flush()
+    if (toDelete.length > 0) {
+      let tr = editor.state.tr
+      for (let i = toDelete.length - 1; i >= 0; i--) tr = tr.deleteRange(toDelete[i].from, toDelete[i].to)
+      editor.view.dispatch(tr)
+    }
+    // B) Схлопываем множественные <br> внутри параграфов через HTML-представление
+    const htmlBefore = editor.getHTML()
+    let html = htmlBefore
+    html = html.replace(/(<br\s*\/?>(?:\s|&nbsp;)*){2,}/gi, '<br />')
+    if (html !== htmlBefore) editor.commands.setContent(html, true)
+  }, [editor])
+
+  // Поиск всех вхождений (позиции в документе)
+  const collectMatches = useCallback((query: string): Array<{ from: number; to: number }> => {
+    const matches: Array<{ from: number; to: number }> = []
+    if (!editor || !query) return matches
+    const q = matchCase ? query : query.toLowerCase()
+    const doc = editor.state.doc
+    doc.descendants((node: any, pos: number) => {
+      if (node.isText) {
+        const src: string = node.text || ''
+        const text = matchCase ? src : src.toLowerCase()
+        let start = 0
+        while (true) {
+          const idx = text.indexOf(q, start)
+          if (idx === -1) break
+          const from = pos + idx
+          const to = from + query.length
+          matches.push({ from, to })
+          start = idx + Math.max(1, query.length)
+        }
+      }
+      return true
+    })
+    return matches
+  }, [editor, matchCase])
+
+  const findNext = useCallback(() => {
+    if (!editor) return
+    const query = findText
+    if (!query) return
+    const all = collectMatches(query)
+    if (all.length === 0) return
+    const after = editor.state.selection.to
+    const next = all.find((m) => m.from >= after) || all[0]
+    const tr = editor.state.tr.setSelection(TextSelection.create(editor.state.doc, next.from, next.to)).scrollIntoView()
+    editor.view.dispatch(tr)
+  }, [editor, findText, collectMatches])
+
+  const replaceOne = useCallback(() => {
+    if (!editor) return
+    const query = findText
+    if (!query) return
+    const sel = editor.state.selection
+    if (sel.empty) {
+      findNext()
+      return
+    }
+    const selected = editor.state.doc.textBetween(sel.from, sel.to, '\n', '\n')
+    const ok = matchCase ? selected === query : selected.toLowerCase() === query.toLowerCase()
+    if (!ok) {
+      findNext()
+      return
+    }
+    const tr = editor.state.tr.insertText(replaceText, sel.from, sel.to)
+    editor.view.dispatch(tr)
+    // Переходим к следующему вхождению
+    setTimeout(findNext, 0)
+  }, [editor, findText, replaceText, matchCase, findNext])
+
+  const replaceAll = useCallback(() => {
+    if (!editor) return
+    const query = findText
+    if (!query) return
+    const all = collectMatches(query)
+    if (all.length === 0) return
+    let tr = editor.state.tr
+    for (let i = all.length - 1; i >= 0; i--) {
+      tr = tr.insertText(replaceText, all[i].from, all[i].to)
+    }
+    editor.view.dispatch(tr)
+  }, [editor, findText, replaceText, collectMatches])
+
   return (
     <div className="space-y-2">
       <input ref={hiddenRef} type="hidden" name={name} value={html} readOnly />
@@ -168,6 +279,7 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
           </svg>
         </button>
         <span className="w-px h-5 bg-slate-300" />
+        <button type="button" title="Найти / заменить" className="px-2 py-1 border rounded" onClick={() => setShowFind((v) => !v)}>🔎⇄</button>
         <button type="button" title="Ссылка" className="px-2 py-1 border rounded" onClick={onSetLink}>🔗</button>
         <button type="button" title="Убрать ссылку" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().unsetLink().run()}>🔗✖</button>
         <button type="button" title="Изображение" className="px-2 py-1 border rounded" onClick={onImageUpload}>🖼️</button>
@@ -184,8 +296,33 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
         <span className="w-px h-5 bg-slate-300" />
         <button type="button" title="Отменить" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().undo().run()}>↶</button>
         <button type="button" title="Повторить" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().redo().run()}>↷</button>
+        <button type="button" title="Убрать лишние переносы строк" className="px-2 py-1 border rounded" onClick={onCleanupBreaks}>🧹</button>
         <button type="button" title="Очистить форматирование" className="px-2 py-1 border rounded" onClick={onUnsetFormatting}>✖</button>
       </div>
+      {showFind && (
+        <div className="flex flex-wrap items-center gap-2 text-sm p-2 border rounded bg-slate-50">
+          <input
+            className="border rounded p-1"
+            placeholder="Найти..."
+            value={findText}
+            onChange={(e) => setFindText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); findNext() } }}
+          />
+          <input
+            className="border rounded p-1"
+            placeholder="Заменить на..."
+            value={replaceText}
+            onChange={(e) => setReplaceText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); replaceOne() } }}
+          />
+          <label className="flex items-center gap-1 ml-2"><input type="checkbox" checked={matchCase} onChange={(e) => setMatchCase(e.target.checked)} />Регистр</label>
+          <span className="w-px h-5 bg-slate-300" />
+          <button type="button" className="px-2 py-1 border rounded" onClick={findNext}>Найти</button>
+          <button type="button" className="px-2 py-1 border rounded" onClick={replaceOne}>Заменить</button>
+          <button type="button" className="px-2 py-1 border rounded" onClick={replaceAll}>Заменить все</button>
+          <button type="button" className="px-2 py-1 border rounded" onClick={() => setShowFind(false)}>×</button>
+        </div>
+      )}
       <EditorContent editor={editor} />
     </div>
   )
