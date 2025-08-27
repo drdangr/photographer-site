@@ -2,16 +2,17 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/session'
 import { supabaseAdmin } from '@/lib/supabaseServer'
 import SaveButton from '@/components/SaveButton'
-import { useI18n } from '@/components/I18nProvider'
+import { cookies } from 'next/headers'
 import RichEditor from '@/components/RichEditor'
 
 export default async function AdminNewsPage() {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
+  const locale = (cookies().get('locale')?.value as 'ru' | 'uk' | 'en' | undefined) || 'ru'
 
   const { data } = await supabaseAdmin
     .from('NewsItem')
-    .select('*')
+    .select('id, title, titleUk, titleEn, date, bodyMd, bodyMdUk, bodyMdEn')
     .order('date', { ascending: false })
     .order('id', { ascending: false })
   const items = data ?? []
@@ -20,6 +21,7 @@ export default async function AdminNewsPage() {
     <div className="space-y-8 max-w-3xl">
       <form action={createNews} className="space-y-3">
         <h2 className="text-lg font-semibold">Добавить новость</h2>
+        <input type="hidden" name="_locale" defaultValue={locale} />
         <div>
           <label className="block text-sm mb-1">Заголовок</label>
           <input name="title" className="border rounded p-2 w-full" required />
@@ -47,10 +49,11 @@ export default async function AdminNewsPage() {
           <li key={n.id} className="py-4">
             <form action={updateNews} className="space-y-3">
               <input type="hidden" name="id" defaultValue={n.id} />
+              <input type="hidden" name="_locale" defaultValue={locale} />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm mb-1">Заголовок</label>
-                  <input name="title" className="border rounded p-2 w-full" defaultValue={n.title ?? ''} required />
+                  <input name="title" className="border rounded p-2 w-full" defaultValue={locale==='uk'?(n as any).titleUk || n.title: locale==='en'?(n as any).titleEn || n.title: n.title ?? ''} required />
                 </div>
                 <div>
                   <label className="block text-sm mb-1">Дата</label>
@@ -64,7 +67,7 @@ export default async function AdminNewsPage() {
               <div>
                 <label className="block text-sm mb-1">Текст</label>
                 <script dangerouslySetInnerHTML={{ __html: 'window.__uploadPrefix="news"' }} />
-                <RichEditor name="bodyMd" defaultHtml={n.bodyMd ?? ''} />
+                <RichEditor name="bodyMd" defaultHtml={(locale==='uk'?(n as any).bodyMdUk: locale==='en'?(n as any).bodyMdEn: n.bodyMd) ?? ''} />
               </div>
               <div className="flex items-center gap-3">
                 <SaveButton />
@@ -80,25 +83,35 @@ export default async function AdminNewsPage() {
 
 async function createNews(formData: FormData) {
   'use server'
+  const locale = String(formData.get('_locale') || 'ru') as 'ru' | 'uk' | 'en'
   const title = String(formData.get('title') || '')
   const dateRaw = String(formData.get('date') || '')
   const timeRaw = String(formData.get('time') || '')
   const bodyMd = String(formData.get('bodyMd') || '')
   if (!title) return
   const date = (dateRaw || timeRaw) ? new Date(`${dateRaw || new Date().toISOString().slice(0,10)}T${timeRaw || '00:00'}:00`) : new Date()
-  await supabaseAdmin.from('NewsItem').insert({ title, date, bodyMd })
+  const base: any = { date }
+  if (locale === 'uk') { base.titleUk = title; base.bodyMdUk = bodyMd }
+  else if (locale === 'en') { base.titleEn = title; base.bodyMdEn = bodyMd }
+  else { base.title = title; base.bodyMd = bodyMd }
+  await supabaseAdmin.from('NewsItem').insert(base)
 }
 
 async function updateNews(formData: FormData) {
   'use server'
   const id = Number(formData.get('id'))
+  const locale = String(formData.get('_locale') || 'ru') as 'ru' | 'uk' | 'en'
   const title = String(formData.get('title') || '')
   const dateRaw = String(formData.get('date') || '')
   const timeRaw = String(formData.get('time') || '')
   const bodyMd = String(formData.get('bodyMd') || '')
   if (!id || !title) return
   const date = (dateRaw || timeRaw) ? new Date(`${dateRaw || new Date().toISOString().slice(0,10)}T${timeRaw || '00:00'}:00`) : new Date()
-  await supabaseAdmin.from('NewsItem').update({ title, date, bodyMd }).eq('id', id).limit(1)
+  const patch: any = { date }
+  if (locale === 'uk') { patch.titleUk = title; patch.bodyMdUk = bodyMd }
+  else if (locale === 'en') { patch.titleEn = title; patch.bodyMdEn = bodyMd }
+  else { patch.title = title; patch.bodyMd = bodyMd }
+  await supabaseAdmin.from('NewsItem').update(patch).eq('id', id).limit(1)
 }
 
 async function deleteNews(formData: FormData) {
