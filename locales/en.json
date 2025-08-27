@@ -1,0 +1,26 @@
+{
+  "nav": {
+    "news": "News",
+    "about": "About",
+    "galleries": "Galleries",
+    "services": "Services",
+    "education": "Education",
+    "lectures": "Lectures & Articles",
+    "clients": "Clients",
+    "admin": "Admin"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "home": "Home",
+    "author": "Author",
+    "galleries": "Galleries",
+    "services": "Services",
+    "education": "Education",
+    "clients": "Clients",
+    "news": "News",
+    "lectures": "Lectures & Articles",
+    "logout": "Logout"
+  }
+}
+
+

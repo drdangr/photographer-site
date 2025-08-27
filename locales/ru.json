@@ -1,0 +1,26 @@
+{
+  "nav": {
+    "news": "Новости",
+    "about": "Об авторе",
+    "galleries": "Галереи",
+    "services": "Услуги",
+    "education": "Обучение",
+    "lectures": "Лекции и статьи",
+    "clients": "Клиентам",
+    "admin": "Админ"
+  },
+  "admin": {
+    "title": "Админ-панель",
+    "home": "Главная",
+    "author": "Автор",
+    "galleries": "Галереи",
+    "services": "Услуги",
+    "education": "Обучение",
+    "clients": "Клиенты",
+    "news": "Новости",
+    "lectures": "Лекции и статьи",
+    "logout": "Выйти"
+  }
+}
+
+

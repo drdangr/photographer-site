@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/session'
 import { supabaseAdmin } from '@/lib/supabaseServer'
 import SaveButton from '@/components/SaveButton'
+import { useI18n } from '@/components/I18nProvider'
 import RichEditor from '@/components/RichEditor'
 
 export default async function AdminNewsPage() {
