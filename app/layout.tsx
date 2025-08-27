@@ -26,16 +26,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="min-h-screen bg-white text-slate-900" suppressHydrationWarning>
         <div className="max-w-6xl mx-auto px-4 py-6">
           <I18nProvider locale={locale} dict={dict}>
-            <header className="flex items-center justify-between mb-8">
-              <nav className="space-x-4">
-                <a href="/news" className="hover:underline">{dict.nav.news}</a>
-                <a href="/about" className="hover:underline">{dict.nav.about}</a>
-                <a href="/galleries" className="hover:underline">{dict.nav.galleries}</a>
-                <a href="/services" className="hover:underline">{dict.nav.services}</a>
-                <a href="/education" className="hover:underline">{dict.nav.education}</a>
-                <a href="/lectures" className="hover:underline">{dict.nav.lectures}</a>
-                <a href="/clients" className="hover:underline">{dict.nav.clients}</a>
-                <a href="/admin" className="hover:underline">{dict.nav.admin}</a>
+            <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-3">
+              <nav className="flex flex-wrap gap-x-4 gap-y-2">
+                <a href="/news" className="hover:underline whitespace-nowrap">{dict.nav.news}</a>
+                <a href="/about" className="hover:underline whitespace-nowrap">{dict.nav.about}</a>
+                <a href="/galleries" className="hover:underline whitespace-nowrap">{dict.nav.galleries}</a>
+                <a href="/services" className="hover:underline whitespace-nowrap">{dict.nav.services}</a>
+                <a href="/education" className="hover:underline whitespace-nowrap">{dict.nav.education}</a>
+                <a href="/lectures" className="hover:underline whitespace-nowrap">{dict.nav.lectures}</a>
+                <a href="/clients" className="hover:underline whitespace-nowrap">{dict.nav.clients}</a>
+                <a href="/admin" className="hover:underline whitespace-nowrap">{dict.nav.admin}</a>
               </nav>
               <LangSwitcher currentLocale={locale} />
             </header>
