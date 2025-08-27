@@ -52,9 +52,10 @@ export default async function AboutPage() {
             if (/^\+?[0-9 ()-]{6,}$/.test(v)) return `tel:${v.replace(/[^0-9+]/g, '')}`
             return null
           }
+          const title = locale === 'uk' ? 'Контакти' : locale === 'en' ? 'Contacts' : 'Контакты'
           return (
             <div className="not-prose mt-6">
-              <h2 className="text-xl font-semibold mb-2">Контакты</h2>
+              <h2 className="text-xl font-semibold mb-2">{title}</h2>
               <ul className="space-y-1">
                 {entries.map(([k, v]) => {
                   const href = asHref(v)

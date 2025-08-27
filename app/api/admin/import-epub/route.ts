@@ -42,12 +42,14 @@ export async function POST(req: NextRequest) {
     const contentType = req.headers.get('content-type') || ''
     let lectureId = 0
     let slug = ''
+    let locale: 'ru' | 'uk' | 'en' = 'ru'
     let buffer: Buffer | null = null
 
     if (contentType.includes('application/json')) {
       const body = (await req.json().catch(() => null)) as any
       lectureId = Number(body?.lectureId || 0)
       slug = String(body?.slug || '')
+      if (body?.locale && ['ru','uk','en'].includes(String(body.locale))) locale = String(body.locale) as any
       const bucket = String(body?.bucket || process.env.SUPABASE_BUCKET || 'public-images')
       const path = String(body?.path || '')
       const fileUrl = typeof body?.fileUrl === 'string' ? (body.fileUrl as string) : ''
@@ -73,6 +75,8 @@ export async function POST(req: NextRequest) {
       const file = form.get('file') as unknown as File | null
       lectureId = Number(form.get('lectureId') || 0)
       slug = String(form.get('slug') || '')
+      const lRaw = String(form.get('locale') || '')
+      if (['ru','uk','en'].includes(lRaw)) locale = lRaw as any
       if (!file || !lectureId || !slug) return Response.json({ message: 'Bad request' }, { status: 400 })
       buffer = Buffer.from(await (file as any).arrayBuffer())
     }
@@ -167,12 +171,12 @@ export async function POST(req: NextRequest) {
 
     const finalHtml = htmlParts.join('\n')
 
-    // 5) Сохраняем в Lecture
-    await supabaseAdmin
-      .from('Lecture')
-      .update({ contentHtml: finalHtml, coverUrl })
-      .eq('id', lectureId)
-      .limit(1)
+    // 5) Сохраняем в Lecture с учётом локали
+    const patch: any = { coverUrl }
+    if (locale === 'uk') patch.contentHtmlUk = finalHtml
+    else if (locale === 'en') patch.contentHtmlEn = finalHtml
+    else patch.contentHtml = finalHtml
+    await supabaseAdmin.from('Lecture').update(patch).eq('id', lectureId).limit(1)
 
     return Response.json({ ok: true, coverUrl, length: finalHtml.length })
   } catch (e: any) {

@@ -10,6 +10,7 @@ import EpubImport from '@/components/EpubImport'
 export default async function NewLecturePage() {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
+  const locale = (await import('next/headers')).cookies().get('locale')?.value as 'ru' | 'uk' | 'en' | undefined || 'ru'
   const { data: sections } = await supabaseAdmin
     .from('LectureSection')
     .select('*')
@@ -50,7 +51,7 @@ export default async function NewLecturePage() {
         <label className="block text-sm mb-1">Содержимое</label>
         {/* lectures/YYYY/MM/DD/<slug>/pictures */}
         <script dangerouslySetInnerHTML={{ __html: `window.__uploadPrefix=()=>{const slug=document.querySelector('input[name=\"slug\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/pictures'}` }} />
-        <EpubImport lectureId={0 as any} slug={'' as any} />
+        <EpubImport lectureId={0 as any} slug={'' as any} locale={locale as any} />
         <RichEditor name="contentHtml" />
       </div>
       <SaveButton />
@@ -60,6 +61,7 @@ export default async function NewLecturePage() {
 
 async function save(formData: FormData) {
   'use server'
+  const locale = (String(formData.get('_locale') || 'ru') as 'ru' | 'uk' | 'en')
   const title = String(formData.get('title') || '')
   const slug = String(formData.get('slug') || '')
   const coverUrl = String(formData.get('coverUrl') || '') || null
@@ -81,7 +83,11 @@ async function save(formData: FormData) {
       .maybeSingle()
     displayOrder = ((maxRow?.displayOrder as number) ?? 0) + 1
   }
-  await supabaseAdmin.from('Lecture').insert({ title, slug: safeSlug, coverUrl, contentHtml, sectionId, displayOrder, public: isPublic })
+  const base: any = { slug: safeSlug, coverUrl, sectionId, displayOrder, public: isPublic }
+  if (locale === 'uk') { base.titleUk = title; base.contentHtmlUk = contentHtml }
+  else if (locale === 'en') { base.titleEn = title; base.contentHtmlEn = contentHtml }
+  else { base.title = title; base.contentHtml = contentHtml }
+  await supabaseAdmin.from('Lecture').insert(base)
   redirect('/admin/lectures')
 }
 

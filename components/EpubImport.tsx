@@ -4,9 +4,10 @@ import { useState } from 'react'
 type Props = {
   lectureId: number
   slug: string
+  locale?: 'ru' | 'uk' | 'en'
 }
 
-export default function EpubImport({ lectureId, slug }: Props) {
+export default function EpubImport({ lectureId, slug, locale = 'ru' }: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [pending, setPending] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -49,7 +50,7 @@ export default function EpubImport({ lectureId, slug }: Props) {
       const res = await fetch('/api/admin/import-epub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lectureId, slug, bucket: meta.bucket, path: meta.path })
+        body: JSON.stringify({ lectureId, slug, bucket: meta.bucket, path: meta.path, locale })
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok || json?.ok === false) throw new Error(json?.message || 'Import failed')

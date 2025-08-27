@@ -12,6 +12,7 @@ type Props = { params: { id: string } }
 export default async function EditLecturePage({ params }: Props) {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
+  const locale = (await import('next/headers')).cookies().get('locale')?.value as 'ru' | 'uk' | 'en' | undefined || 'ru'
   const id = Number(params.id)
   const { data: lecture } = await supabaseAdmin.from('Lecture').select('*').eq('id', id).maybeSingle()
   const { data: sections } = await supabaseAdmin
@@ -24,10 +25,11 @@ export default async function EditLecturePage({ params }: Props) {
     <form action={save} className="space-y-4 max-w-4xl">
       <h1 className="text-xl font-semibold">Редактирование</h1>
       <input type="hidden" name="id" defaultValue={lecture.id} />
+      <input type="hidden" name="_locale" defaultValue={locale} />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
         <div className="md:col-span-2">
           <label className="block text-sm mb-1">Заголовок</label>
-          <input name="title" className="border rounded p-2 w-full" defaultValue={lecture.title} required />
+          <input name="title" className="border rounded p-2 w-full" defaultValue={(locale==='uk'?(lecture as any).titleUk: locale==='en'?(lecture as any).titleEn: (lecture as any).title) || ''} required />
         </div>
         <div className="md:col-span-1">
           <label className="block text-sm mb-1">Slug</label>
@@ -57,8 +59,8 @@ export default async function EditLecturePage({ params }: Props) {
         {/* lectures/YYYY/MM/DD/<slug>/pictures */}
         <script dangerouslySetInnerHTML={{ __html: `window.__uploadPrefix=()=>{const slug=document.querySelector('input[name=\"slug\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/pictures'}` }} />
         {/* Кнопка импорта EPUB (клиентский компонент, не вкладываем <form> внутрь <form>) */}
-        <EpubImport lectureId={Number(lecture.id)} slug={String(lecture.slug)} />
-        <RichEditor name="contentHtml" defaultHtml={lecture.contentHtml ?? ''} />
+        <EpubImport lectureId={Number(lecture.id)} slug={String(lecture.slug)} locale={locale as any} />
+        <RichEditor name="contentHtml" defaultHtml={(locale==='uk'?(lecture as any).contentHtmlUk: locale==='en'?(lecture as any).contentHtmlEn: (lecture as any).contentHtml) ?? ''} />
       </div>
       <div className="flex gap-3">
         <SaveButton />
@@ -71,6 +73,7 @@ export default async function EditLecturePage({ params }: Props) {
 async function save(formData: FormData) {
   'use server'
   const id = Number(formData.get('id'))
+  const locale = (String(formData.get('_locale') || 'ru') as 'ru' | 'uk' | 'en')
   const title = String(formData.get('title') || '')
   const slug = String(formData.get('slug') || '')
   const coverUrl = String(formData.get('coverUrl') || '') || null
@@ -81,12 +84,12 @@ async function save(formData: FormData) {
   const isPublic = publicRaw ? true : false
   if (!id || !title || !slug) return
   // До обновления получаем прежний HTML, чтобы найти удалённые ссылки
-  const { data: beforeRow } = await supabaseAdmin.from('Lecture').select('contentHtml, coverUrl').eq('id', id).maybeSingle()
-  await supabaseAdmin
-    .from('Lecture')
-    .update({ title, slug: normalizeSlug(slug), coverUrl, contentHtml, sectionId, public: isPublic })
-    .eq('id', id)
-    .limit(1)
+  const { data: beforeRow } = await supabaseAdmin.from('Lecture').select('contentHtml, contentHtmlUk, contentHtmlEn, coverUrl').eq('id', id).maybeSingle()
+  const patch: any = { slug: normalizeSlug(slug), coverUrl, sectionId, public: isPublic }
+  if (locale === 'uk') { patch.titleUk = title; patch.contentHtmlUk = contentHtml }
+  else if (locale === 'en') { patch.titleEn = title; patch.contentHtmlEn = contentHtml }
+  else { patch.title = title; patch.contentHtml = contentHtml }
+  await supabaseAdmin.from('Lecture').update(patch).eq('id', id).limit(1)
   // Безопасно чистим файлы, удалённые из HTML/сменённую обложку, если они больше нигде не используются
   try {
     const extract = (html: string | null): Set<string> => {
@@ -97,7 +100,8 @@ async function save(formData: FormData) {
       while ((m = re.exec(html))) set.add(m[1])
       return set
     }
-    const before = extract((beforeRow as any)?.contentHtml || '')
+    const prevHtml = (locale==='uk'?(beforeRow as any)?.contentHtmlUk: locale==='en'?(beforeRow as any)?.contentHtmlEn: (beforeRow as any)?.contentHtml) || ''
+    const before = extract(prevHtml)
     const after = extract(contentHtml)
     const removed = Array.from(before).filter((u) => !after.has(u))
     if (removed.length > 0 || ((beforeRow as any)?.coverUrl && (beforeRow as any)?.coverUrl !== coverUrl)) {
