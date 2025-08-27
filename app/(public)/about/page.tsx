@@ -12,6 +12,19 @@ export default async function AboutPage() {
     .limit(1)
     .maybeSingle()
   const author = data || null
+  const locale = (await import('next/headers')).cookies().get('locale')?.value as 'ru' | 'uk' | 'en' | undefined
+  const fullName = (() => {
+    if (!author) return 'Об авторе'
+    if (locale === 'uk') return (author as any).fullNameUk || (author as any).fullName || 'Про автора'
+    if (locale === 'en') return (author as any).fullNameEn || (author as any).fullName || 'About the author'
+    return (author as any).fullName || 'Об авторе'
+  })()
+  const bio = (() => {
+    if (!author) return ''
+    if (locale === 'uk') return (author as any).bioMarkdownUk || (author as any).bioMarkdown || ''
+    if (locale === 'en') return (author as any).bioMarkdownEn || (author as any).bioMarkdown || ''
+    return (author as any).bioMarkdown || ''
+  })()
   return (
     <section className="prose max-w-none">
       {author?.avatarUrl && (
@@ -19,10 +32,10 @@ export default async function AboutPage() {
         <img src={author.avatarUrl} alt={author.fullName ?? 'Автор'} className="w-48 h-48 rounded-full object-cover border" />
       )}
       <h1 className="!mt-4 !mb-2 !text-3xl md:!text-5xl !font-extrabold">
-        {author?.fullName || 'Об авторе'}
+        {fullName}
       </h1>
-      {author?.bioMarkdown ? (
-        <div dangerouslySetInnerHTML={{ __html: author.bioMarkdown as string }} />
+      {bio ? (
+        <div dangerouslySetInnerHTML={{ __html: bio as string }} />
       ) : (
         <p>Добавьте информацию об авторе в админ-панели.</p>
       )}

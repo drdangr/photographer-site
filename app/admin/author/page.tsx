@@ -5,10 +5,12 @@ import { getServerSession } from '@/lib/session'
 import ImageInput from '@/components/ImageInput'
 import RichEditor from '@/components/RichEditor'
 import SaveButton from '@/components/SaveButton'
+import { cookies } from 'next/headers'
 
 export default async function AdminAuthorPage() {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
+  const locale = (cookies().get('locale')?.value as 'ru' | 'uk' | 'en') || 'ru'
 
   const { data: author } = await supabaseAdmin
     .from('AuthorProfile')
@@ -24,18 +26,33 @@ export default async function AdminAuthorPage() {
     }
   })()
 
+  const fullNameByLocale = (() => {
+    const a = (author as any) || {}
+    if (locale === 'uk') return a.fullNameUk ?? a.fullName ?? ''
+    if (locale === 'en') return a.fullNameEn ?? a.fullName ?? ''
+    return a.fullName ?? ''
+  })()
+
+  const bioByLocale = (() => {
+    const a = (author as any) || {}
+    if (locale === 'uk') return a.bioMarkdownUk ?? a.bioMarkdown ?? ''
+    if (locale === 'en') return a.bioMarkdownEn ?? a.bioMarkdown ?? ''
+    return a.bioMarkdown ?? ''
+  })()
+
   return (
     <form action={saveAuthor} className="max-w-2xl space-y-4">
       <h2 className="text-xl font-semibold">Профиль автора</h2>
       <input type="hidden" name="id" defaultValue={author?.id} />
+      <input type="hidden" name="_locale" defaultValue={locale} />
       <div>
         <label className="block text-sm mb-1">Полное имя</label>
-        <input name="fullName" className="border rounded w-full p-2" defaultValue={author?.fullName ?? ''} required />
+        <input name="fullName" className="border rounded w-full p-2" defaultValue={fullNameByLocale} required />
       </div>
       <ImageInput name="avatarUrl" label="Аватар (URL или загрузка)" defaultValue={author?.avatarUrl ?? ''} />
       <div>
         <label className="block text-sm mb-1">Био</label>
-        <RichEditor name="bioMarkdown" defaultHtml={author?.bioMarkdown ?? ''} />
+        <RichEditor name="bioMarkdown" defaultHtml={bioByLocale} />
       </div>
       <div>
         <label className="block text-sm mb-1">Контакты (JSON)</label>
@@ -66,6 +83,7 @@ export default async function AdminAuthorPage() {
 async function saveAuthor(formData: FormData) {
   'use server'
   const id = Number(formData.get('id') || 0)
+  const locale = String(formData.get('_locale') || 'ru') as 'ru' | 'uk' | 'en'
   const fullName = String(formData.get('fullName') || '')
   const avatarUrl = String(formData.get('avatarUrl') || '') || null
   const bioMarkdown = String(formData.get('bioMarkdown') || '') || null
@@ -98,17 +116,25 @@ async function saveAuthor(formData: FormData) {
   }
 
   if (targetId) {
+    const patch: Record<string, any> = { avatarUrl, contacts }
+    if (locale === 'uk') { patch.fullNameUk = fullName; patch.bioMarkdownUk = bioMarkdown }
+    else if (locale === 'en') { patch.fullNameEn = fullName; patch.bioMarkdownEn = bioMarkdown }
+    else { patch.fullName = fullName; patch.bioMarkdown = bioMarkdown }
     await supabaseAdmin
       .from('AuthorProfile')
-      .update({ fullName, avatarUrl, bioMarkdown, contacts })
+      .update(patch)
       .eq('id', targetId)
       .limit(1)
     // 2) Удаляем все прочие записи, чтобы не хранить историю
     await supabaseAdmin.from('AuthorProfile').delete().neq('id', targetId)
   } else {
+    const base: Record<string, any> = { avatarUrl, contacts }
+    if (locale === 'uk') { base.fullNameUk = fullName; base.bioMarkdownUk = bioMarkdown }
+    else if (locale === 'en') { base.fullNameEn = fullName; base.bioMarkdownEn = bioMarkdown }
+    else { base.fullName = fullName; base.bioMarkdown = bioMarkdown }
     const { data: created } = await supabaseAdmin
       .from('AuthorProfile')
-      .insert({ fullName, avatarUrl, bioMarkdown, contacts })
+      .insert(base)
       .select('id')
       .maybeSingle()
     const newId = (created?.id as number) || null
