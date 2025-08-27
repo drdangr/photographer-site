@@ -8,10 +8,12 @@ import SaveButton from '@/components/SaveButton'
 export default async function NewGalleryPage() {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
+  const locale = (await import('next/headers')).cookies().get('locale')?.value as 'ru' | 'uk' | 'en' | undefined || 'ru'
 
   return (
     <form action={saveGallery} className="max-w-2xl space-y-4">
       <h2 className="text-xl font-semibold">Новая галерея</h2>
+      <input type="hidden" name="_locale" defaultValue={locale} />
       <div>
         <label className="block text-sm mb-1">Название</label>
         <input name="title" className="border rounded w-full p-2" required />

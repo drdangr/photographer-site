@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 export async function saveGallery(formData: FormData) {
   'use server'
   const id = Number(formData.get('id') || 0)
+  const locale = String(formData.get('_locale') || 'ru') as 'ru' | 'uk' | 'en'
   const title = String(formData.get('title') || '')
   const slug = String(formData.get('slug') || '')
   const description = String(formData.get('description') || '') || null
@@ -21,7 +22,10 @@ export async function saveGallery(formData: FormData) {
   // Create or update gallery
   let gallery: { id: number }
   if (id) {
-    const updatePayload: any = { title, slug, description, coverUrl, updatedAt: nowIso }
+    const updatePayload: any = { slug, coverUrl, updatedAt: nowIso }
+    if (locale === 'uk') { updatePayload.titleUk = title; updatePayload.descriptionUk = description }
+    else if (locale === 'en') { updatePayload.titleEn = title; updatePayload.descriptionEn = description }
+    else { updatePayload.title = title; updatePayload.description = description }
     if (displayOrder !== undefined && !Number.isNaN(displayOrder)) updatePayload.displayOrder = displayOrder
     const { error } = await supabaseAdmin
       .from('Gallery')
@@ -31,7 +35,10 @@ export async function saveGallery(formData: FormData) {
     if (error) throw new Error(`Не удалось обновить галерею: ${error.message}`)
     gallery = { id }
   } else {
-    const insertBase: any = { title, slug, description, coverUrl, createdAt: nowIso, updatedAt: nowIso }
+    const insertBase: any = { slug, coverUrl, createdAt: nowIso, updatedAt: nowIso }
+    if (locale === 'uk') { insertBase.titleUk = title; insertBase.descriptionUk = description }
+    else if (locale === 'en') { insertBase.titleEn = title; insertBase.descriptionEn = description }
+    else { insertBase.title = title; insertBase.description = description }
     if (displayOrder !== undefined && !Number.isNaN(displayOrder)) insertBase.displayOrder = displayOrder
 
     // Первая попытка — с указанными полями

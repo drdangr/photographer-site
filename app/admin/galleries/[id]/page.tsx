@@ -14,6 +14,7 @@ type Props = { params: { id: string } }
 export default async function EditGalleryPage({ params }: Props) {
   const session = await getServerSession()
   if (!session.userId) redirect('/admin/login')
+  const locale = (await import('next/headers')).cookies().get('locale')?.value as 'ru' | 'uk' | 'en' | undefined || 'ru'
 
   const id = Number(params.id)
   const { data: gallery } = await supabaseAdmin.from('Gallery').select('*').eq('id', id).maybeSingle()
@@ -25,9 +26,10 @@ export default async function EditGalleryPage({ params }: Props) {
       <form action={saveGallery} className="space-y-4">
         <h2 className="text-xl font-semibold">Редактирование галереи</h2>
         <input type="hidden" name="id" defaultValue={gallery.id} />
+        <input type="hidden" name="_locale" defaultValue={locale} />
         <div>
           <label className="block text-sm mb-1">Название</label>
-          <input name="title" className="border rounded w-full p-2" defaultValue={gallery.title} required />
+          <input name="title" className="border rounded w-full p-2" defaultValue={(locale==='uk'?(gallery as any).titleUk: locale==='en'?(gallery as any).titleEn: (gallery as any).title) || ''} required />
         </div>
         <div>
           <label className="block text-sm mb-1">Slug</label>
@@ -35,7 +37,7 @@ export default async function EditGalleryPage({ params }: Props) {
         </div>
         <div>
           <label className="block text-sm mb-1">Описание</label>
-          <textarea name="description" className="border rounded w-full p-2" defaultValue={gallery.description ?? ''} />
+          <textarea name="description" className="border rounded w-full p-2" defaultValue={(locale==='uk'?(gallery as any).descriptionUk: locale==='en'?(gallery as any).descriptionEn: (gallery as any).description) ?? ''} />
         </div>
         <div>
           <label className="block text-sm mb-1">Порядок отображения</label>
