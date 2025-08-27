@@ -16,28 +16,32 @@ export default async function NewLecturePage() {
     .order('displayOrder', { ascending: true })
     .order('title', { ascending: true })
   return (
-    <form action={save} className="space-y-4 max-w-3xl">
+    <form action={save} className="space-y-4 max-w-4xl">
       <h1 className="text-xl font-semibold">Новая лекция / статья</h1>
-      <div>
-        <label className="block text-sm mb-1">Заголовок</label>
-        <input name="title" className="border rounded p-2 w-full" required />
-      </div>
-      <div>
-        <label className="block text-sm mb-1">Slug</label>
-        <input name="slug" className="border rounded p-2 w-full" placeholder="kak-snimat-portrety" required />
-      </div>
-      <div>
-        <label className="block text-sm mb-1">Раздел</label>
-        <select name="sectionId" className="border rounded p-2 w-full">
-          <option value="">— Без раздела —</option>
-          {(sections || []).map((s: any) => (
-            <option key={s.id} value={s.id}>{s.title}</option>
-          ))}
-        </select>
-      </div>
-      <div className="flex items-center gap-2">
-        <label className="block text-sm">Публичная</label>
-        <input type="checkbox" name="public" defaultChecked={true} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div className="md:col-span-2">
+          <label className="block text-sm mb-1">Заголовок</label>
+          <input name="title" className="border rounded p-2 w-full" required />
+        </div>
+        <div className="md:col-span-1">
+          <label className="block text-sm mb-1">Slug</label>
+          <input name="slug" className="border rounded p-2 w-full" placeholder="kak-snimat-portrety" required />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm mb-1">Раздел</label>
+          <select name="sectionId" className="border rounded p-2 w-full">
+            <option value="">— Без раздела —</option>
+            {(sections || []).map((s: any) => (
+              <option key={s.id} value={s.id}>{s.title}</option>
+            ))}
+          </select>
+        </div>
+        <div className="md:col-span-1">
+          <div className="flex items-center gap-2 pt-6 md:pt-0">
+            <input id="lecture-public" type="checkbox" name="public" defaultChecked={true} />
+            <label htmlFor="lecture-public" className="text-sm">Публичная</label>
+          </div>
+        </div>
       </div>
       {/* lectures/YYYY/MM/DD/<slug>/covers */}
       <script dangerouslySetInnerHTML={{ __html: `window.__uploadCoverPrefix=()=>{const slug=document.querySelector('input[name=\"slug\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/covers'}` }} />

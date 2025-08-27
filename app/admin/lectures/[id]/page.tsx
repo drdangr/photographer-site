@@ -21,29 +21,33 @@ export default async function EditLecturePage({ params }: Props) {
     .order('title', { ascending: true })
   if (!lecture) redirect('/admin/lectures')
   return (
-    <form action={save} className="space-y-4 max-w-3xl">
+    <form action={save} className="space-y-4 max-w-4xl">
       <h1 className="text-xl font-semibold">Редактирование</h1>
       <input type="hidden" name="id" defaultValue={lecture.id} />
-      <div>
-        <label className="block text-sm mb-1">Заголовок</label>
-        <input name="title" className="border rounded p-2 w-full" defaultValue={lecture.title} required />
-      </div>
-      <div>
-        <label className="block text-sm mb-1">Slug</label>
-        <input name="slug" className="border rounded p-2 w-full" defaultValue={lecture.slug} required />
-      </div>
-      <div>
-        <label className="block text-sm mb-1">Раздел</label>
-        <select name="sectionId" className="border rounded p-2 w-full" defaultValue={(lecture as any).sectionId ?? ''}>
-          <option value="">— Без раздела —</option>
-          {(sections || []).map((s: any) => (
-            <option key={s.id} value={s.id}>{s.title}</option>
-          ))}
-        </select>
-      </div>
-      <div className="flex items-center gap-2">
-        <label className="block text-sm">Публичная</label>
-        <input type="checkbox" name="public" defaultChecked={(lecture as any).public ?? true} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div className="md:col-span-2">
+          <label className="block text-sm mb-1">Заголовок</label>
+          <input name="title" className="border rounded p-2 w-full" defaultValue={lecture.title} required />
+        </div>
+        <div className="md:col-span-1">
+          <label className="block text-sm mb-1">Slug</label>
+          <input name="slug" className="border rounded p-2 w-full" defaultValue={lecture.slug} required />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm mb-1">Раздел</label>
+          <select name="sectionId" className="border rounded p-2 w-full" defaultValue={(lecture as any).sectionId ?? ''}>
+            <option value="">— Без раздела —</option>
+            {(sections || []).map((s: any) => (
+              <option key={s.id} value={s.id}>{s.title}</option>
+            ))}
+          </select>
+        </div>
+        <div className="md:col-span-1">
+          <div className="flex items-center gap-2 pt-6 md:pt-0">
+            <input id="lecture-public" type="checkbox" name="public" defaultChecked={(lecture as any).public ?? true} />
+            <label htmlFor="lecture-public" className="text-sm">Публичная</label>
+          </div>
+        </div>
       </div>
       {/* lectures/YYYY/MM/DD/<slug>/covers */}
       <script dangerouslySetInnerHTML={{ __html: `window.__uploadCoverPrefix=()=>{const slug=document.querySelector('input[name=\\"slug\\"]')?.value?.trim()||'no-slug';const d=new Date();const y=d.getFullYear(),m=(''+(d.getMonth()+1)).padStart(2,'0'),day=(''+d.getDate()).padStart(2,'0');return 'lectures/'+y+'/'+m+'/'+day+'/'+slug+'/covers'}` }} />

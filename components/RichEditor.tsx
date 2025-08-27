@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -22,6 +22,7 @@ type Props = {
 
 export default function RichEditor({ name, defaultHtml = '', placeholder }: Props) {
   const [html, setHtml] = useState<string>(defaultHtml)
+  const hiddenRef = useRef<HTMLInputElement>(null)
   const editor = useEditor({
     content: defaultHtml,
     extensions: [
@@ -50,7 +51,7 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: 'prose max-w-none p-3 min-h-[220px] border rounded focus:outline-none',
+        class: 'prose max-w-none p-3 min-h-[220px] max-h-[65vh] overflow-y-auto border rounded focus:outline-none',
         'data-gramm': 'false',
         'data-gramm_editor': 'false',
         'data-enable-grammarly': 'false',
@@ -61,6 +62,10 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
     },
     onUpdate: ({ editor }) => {
       setHtml(editor.getHTML())
+      // Сигнализируем форме об изменении (важно для активации Save при удалении символов)
+      setTimeout(() => {
+        hiddenRef.current?.dispatchEvent(new Event('input', { bubbles: true }))
+      }, 0)
     },
   })
 
@@ -127,41 +132,59 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
 
   return (
     <div className="space-y-2">
-      <input type="hidden" name={name} value={html} readOnly />
+      <input ref={hiddenRef} type="hidden" name={name} value={html} readOnly />
       <div className="flex flex-wrap gap-2 text-sm">
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleBold().run()}>B</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleStrike().run()}>S</button>
+        <button type="button" title="Жирный" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleBold().run()}>B</button>
+        <button type="button" title="Курсив" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button>
+        <button type="button" title="Подчёркнутый" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button>
+        <button type="button" title="Зачёркнутый" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleStrike().run()}>S</button>
         <span className="w-px h-5 bg-slate-300" />
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
+        <button type="button" title="Заголовок H1" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
+        <button type="button" title="Заголовок H2" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
+        <button type="button" title="Заголовок H3" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
         <span className="w-px h-5 bg-slate-300" />
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleBulletList().run()}>• Список</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1. Список</button>
+        <button type="button" title="Маркированный список" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleBulletList().run()}>•</button>
+        <button type="button" title="Нумерованный список" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1.</button>
         <span className="w-px h-5 bg-slate-300" />
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().setTextAlign('left').run()}>Left</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().setTextAlign('center').run()}>Center</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().setTextAlign('right').run()}>Right</button>
+        <button type="button" title="Выровнять по левому краю" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().setTextAlign('left').run()}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="15" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="13" y2="18" />
+          </svg>
+        </button>
+        <button type="button" title="Выровнять по центру" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().setTextAlign('center').run()}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="5" y1="6" x2="19" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="7" y1="18" x2="17" y2="18" />
+          </svg>
+        </button>
+        <button type="button" title="Выровнять по правому краю" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().setTextAlign('right').run()}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="9" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="11" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
         <span className="w-px h-5 bg-slate-300" />
-        <button type="button" className="px-2 py-1 border rounded" onClick={onSetLink}>Link</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().unsetLink().run()}>Unlink</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={onImageUpload}>Image</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleBlockquote().run()}>Quote</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().setHorizontalRule().run()}>HR</button>
+        <button type="button" title="Ссылка" className="px-2 py-1 border rounded" onClick={onSetLink}>🔗</button>
+        <button type="button" title="Убрать ссылку" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().unsetLink().run()}>🔗✖</button>
+        <button type="button" title="Изображение" className="px-2 py-1 border rounded" onClick={onImageUpload}>🖼️</button>
+        <button type="button" title="Цитата" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleBlockquote().run()}>❝</button>
+        <button type="button" title="Горизонтальная линия" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().setHorizontalRule().run()}>⎯⎯⎯</button>
         <span className="w-px h-5 bg-slate-300" />
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleCodeBlock().run()}>Code</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>Table</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().addRowAfter().run()}>+Row</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().addColumnAfter().run()}>+Col</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().deleteRow().run()}>-Row</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().deleteColumn().run()}>-Col</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().deleteTable().run()}>DelTbl</button>
+        <button type="button" title="Кодовый блок" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleCodeBlock().run()}>{'<>'}</button>
+        <button type="button" title="Таблица" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>▦</button>
+        <button type="button" title="Добавить строку" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().addRowAfter().run()}>＋R</button>
+        <button type="button" title="Добавить колонку" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().addColumnAfter().run()}>＋C</button>
+        <button type="button" title="Удалить строку" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().deleteRow().run()}>−R</button>
+        <button type="button" title="Удалить колонку" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().deleteColumn().run()}>−C</button>
+        <button type="button" title="Удалить таблицу" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().deleteTable().run()}>⌫▦</button>
         <span className="w-px h-5 bg-slate-300" />
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().undo().run()}>Undo</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().redo().run()}>Redo</button>
-        <button type="button" className="px-2 py-1 border rounded" onClick={onUnsetFormatting}>Clear</button>
+        <button type="button" title="Отменить" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().undo().run()}>↶</button>
+        <button type="button" title="Повторить" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().redo().run()}>↷</button>
+        <button type="button" title="Очистить форматирование" className="px-2 py-1 border rounded" onClick={onUnsetFormatting}>✖</button>
       </div>
       <EditorContent editor={editor} />
     </div>
