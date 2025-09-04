@@ -22,6 +22,17 @@ type Props = {
   placeholder?: string
 }
 
+// Типизация пользовательской команды video для TipTap
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    video: {
+      setVideo: (
+        options: { src: string; poster?: string } & Partial<Record<'loop' | 'autoplay' | 'muted' | 'playsinline' | 'controls', boolean>>
+      ) => ReturnType
+    }
+  }
+}
+
 // Простейшее расширение для встраивания MP4-видео
 const Video = Node.create({
   name: 'video',
