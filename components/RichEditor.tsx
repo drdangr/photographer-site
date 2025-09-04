@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { TextSelection } from 'prosemirror-state'
 import { useEditor, EditorContent } from '@tiptap/react'
+import { Node, mergeAttributes } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -21,6 +22,52 @@ type Props = {
   placeholder?: string
 }
 
+// Простейшее расширение для встраивания MP4-видео
+const Video = Node.create({
+  name: 'video',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      src: { default: null },
+      poster: { default: null },
+      loop: { default: true },
+      autoplay: { default: true },
+      muted: { default: true },
+      playsinline: { default: true },
+      controls: { default: false },
+      style: { default: 'display:block;max-width:100%;width:100%;height:auto;margin:0;' },
+      preload: { default: 'metadata' },
+    }
+  },
+  parseHTML() {
+    return [
+      { tag: 'video' },
+    ]
+  },
+  renderHTML({ HTMLAttributes }) {
+    const attrs: Record<string, any> = { ...HTMLAttributes }
+    // Булевы атрибуты — указываем как пустые
+    if (attrs.loop) attrs.loop = ''
+    if (attrs.autoplay) attrs.autoplay = ''
+    if (attrs.muted) attrs.muted = ''
+    if (attrs.playsinline) attrs.playsinline = ''
+    if (attrs.controls) attrs.controls = ''
+    return ['video', mergeAttributes(attrs)]
+  },
+  addCommands() {
+    return {
+      setVideo:
+        (options: { src: string; poster?: string } & Partial<Record<'loop' | 'autoplay' | 'muted' | 'playsinline' | 'controls', boolean>>) =>
+        ({ commands }) => {
+          return commands.insertContent({ type: this.name, attrs: options })
+        },
+    }
+  },
+})
+
 export default function RichEditor({ name, defaultHtml = '', placeholder }: Props) {
   const [html, setHtml] = useState<string>(defaultHtml)
   const hiddenRef = useRef<HTMLInputElement>(null)
@@ -33,6 +80,7 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
     extensions: [
       // Базовые возможности
       StarterKit,
+      Video,
       Underline,
       Link.configure({
         openOnClick: true,
@@ -121,6 +169,53 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
       if (url) editor?.chain().focus().setImage({ src: url }).run()
     }
     input.click()
+  }, [editor])
+
+  const onVideoUpload = useCallback(async () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'video/mp4,video/*'
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      let dynPrefix = ''
+      if (typeof (window as any).__uploadPrefix === 'function') dynPrefix = (window as any).__uploadPrefix()
+      else if (typeof (window as any).__uploadPrefix === 'string') dynPrefix = (window as any).__uploadPrefix
+      const params = new URLSearchParams(dynPrefix ? { prefix: dynPrefix } : {})
+      const metaRes = await fetch('/api/storage/signed-upload' + (params.toString() ? `?${params.toString()}` : ''), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: (file as any).name || 'video.mp4' })
+      })
+      if (!metaRes.ok) return
+      const meta = await metaRes.json()
+      const uploadRes = await fetch(meta.signedUrl, {
+        method: 'PUT',
+        headers: { 'x-upsert': 'true', 'content-type': (file as any).type || 'application/octet-stream', 'authorization': `Bearer ${meta.token}` },
+        body: file,
+      }).catch(() => null)
+      if (!uploadRes || !uploadRes.ok) {
+        const form = new FormData()
+        form.append('file', file)
+        const upParams = params.toString() ? `?${params.toString()}` : ''
+        const res = await fetch('/api/upload' + upParams, { method: 'POST', body: form })
+        if (!res.ok) return
+        const data = await res.json()
+        editor?.chain().focus().setVideo({ src: data.url, loop: true, autoplay: true, muted: true, playsinline: true }).run()
+        return
+      }
+      const url = meta.publicUrl as string
+      if (url) editor?.chain().focus().setVideo({ src: url, loop: true, autoplay: true, muted: true, playsinline: true }).run()
+    }
+    input.click()
+  }, [editor])
+
+  const onVideoFromUrl = useCallback(() => {
+    const url = window.prompt('MP4 URL (можно относительный путь):', '')
+    if (!url) return
+    const v = url.trim()
+    if (!/^https?:\/\//i.test(v) && !v.startsWith('/')) return
+    editor?.chain().focus().setVideo({ src: v, loop: true, autoplay: true, muted: true, playsinline: true }).run()
   }, [editor])
 
   const onSetLink = useCallback(() => {
@@ -283,6 +378,8 @@ export default function RichEditor({ name, defaultHtml = '', placeholder }: Prop
         <button type="button" title="Ссылка" className="px-2 py-1 border rounded" onClick={onSetLink}>🔗</button>
         <button type="button" title="Убрать ссылку" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().unsetLink().run()}>🔗✖</button>
         <button type="button" title="Изображение" className="px-2 py-1 border rounded" onClick={onImageUpload}>🖼️</button>
+        <button type="button" title="Видео (файл)" className="px-2 py-1 border rounded" onClick={onVideoUpload}>🎬</button>
+        <button type="button" title="Видео по URL" className="px-2 py-1 border rounded" onClick={onVideoFromUrl}>▶</button>
         <button type="button" title="Цитата" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().toggleBlockquote().run()}>❝</button>
         <button type="button" title="Горизонтальная линия" className="px-2 py-1 border rounded" onClick={() => editor?.chain().focus().setHorizontalRule().run()}>⎯⎯⎯</button>
         <span className="w-px h-5 bg-slate-300" />

@@ -18,11 +18,13 @@ function sanitize(html: string): string {
   return sanitizeHtml(html, {
     allowedTags: [
       'h1','h2','h3','p','strong','em','u','s','a','ul','ol','li','blockquote','code','pre',
-      'table','thead','tbody','tr','td','th','img','hr','br','span','figure','figcaption'
+      'table','thead','tbody','tr','td','th','img','hr','br','span','figure','figcaption','video','source'
     ],
     allowedAttributes: {
       a: ['href','title'],
       img: ['src','alt','title','loading','style'],
+      video: ['src','poster','loop','autoplay','muted','playsinline','controls','preload','style'],
+      source: ['src','type'],
       '*': ['style']
     },
     transformTags: {
@@ -31,6 +33,12 @@ function sanitize(html: string): string {
         const style = attribs.style ? `${attribs.style};${baseStyle}` : baseStyle
         const { width, height, ...rest } = attribs as any
         return { tagName, attribs: { ...rest, loading: 'lazy', style } }
+      },
+      video: (tagName, attribs) => {
+        const baseStyle = 'display:block;max-width:100%;width:100%;height:auto;margin:0;'
+        const style = (attribs as any).style ? `${(attribs as any).style};${baseStyle}` : baseStyle
+        const { width, height, ...rest } = attribs as any
+        return { tagName, attribs: { ...rest, loop: 'true', autoplay: 'true', muted: 'true', playsinline: 'true', preload: 'metadata', style } }
       }
     },
     allowVulnerableTags: true,
