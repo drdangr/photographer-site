@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/session'
+import { revalidatePath } from 'next/cache'
 import { supabaseAdmin } from '@/lib/supabaseServer'
 import RichEditor from '@/components/RichEditor'
 import SaveButton from '@/components/SaveButton'
@@ -150,7 +151,9 @@ async function save(formData: FormData) {
       }
     }
   } catch {}
-  redirect('/admin/lectures')
+  // Обновляем текущую страницу, чтобы форма получила актуальные значения и кнопка деактивировалась
+  revalidatePath(`/admin/lectures/${id}`)
+  // Остаёмся на странице редактирования без редиректа
 }
 
 async function remove(formData: FormData) {

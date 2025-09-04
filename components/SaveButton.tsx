@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useFormStatus } from 'react-dom'
 
 type Props = {
@@ -19,11 +20,21 @@ function serializeForm(form: HTMLFormElement): string {
 }
 
 export default function SaveButton({ children = 'Сохранить', className = '' }: Props) {
+  const router = useRouter()
   const { pending } = useFormStatus()
   const btnRef = useRef<HTMLButtonElement>(null)
   const [dirty, setDirty] = useState(false)
   const initialSnapshotRef = useRef<string>('')
   const lastSubmittedRef = useRef<number>(0)
+  const ignoreChangesUntilTsRef = useRef<number>(0)
+  const suspendDirtyRef = useRef<boolean>(false)
+
+  const commitBaseline = useCallback(() => {
+    const form = btnRef.current?.closest('form') as HTMLFormElement | null
+    if (!form) return
+    initialSnapshotRef.current = serializeForm(form)
+    setDirty(false)
+  }, [])
 
   const setInitialSnapshot = useCallback(() => {
     const form = btnRef.current?.closest('form') as HTMLFormElement | null
@@ -39,6 +50,9 @@ export default function SaveButton({ children = 'Сохранить', className 
     setInitialSnapshot()
     let raf = 0
     const onChange = () => {
+      // Игнорируем короткий всплеск событий изменений сразу после сохранения
+      if (suspendDirtyRef.current) return
+      if (Date.now() < ignoreChangesUntilTsRef.current) return
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
         const current = serializeForm(form)
@@ -49,11 +63,18 @@ export default function SaveButton({ children = 'Сохранить', className 
     form.addEventListener('change', onChange, { passive: true })
     form.addEventListener('submit', () => {
       lastSubmittedRef.current = Date.now()
+      // сразу после submit игнорируем изменения на более длительное время
+      ignoreChangesUntilTsRef.current = Date.now() + 2200
     })
+    const resume = () => { suspendDirtyRef.current = false }
+    window.addEventListener('pointerdown', resume, { passive: true })
+    window.addEventListener('keydown', resume, { passive: true })
     return () => {
       cancelAnimationFrame(raf)
       form.removeEventListener('input', onChange)
       form.removeEventListener('change', onChange)
+      window.removeEventListener('pointerdown', resume)
+      window.removeEventListener('keydown', resume)
     }
   }, [setInitialSnapshot])
 
@@ -67,9 +88,19 @@ export default function SaveButton({ children = 'Сохранить', className 
     if (wasPending.current) {
       wasPending.current = false
       // небольшой таймаут даёт форме применить новые defaultValue при редиректе или revalidate
-      setTimeout(setInitialSnapshot, 50)
+      // и игнорируем события изменений в ближайшие ~2.2с (покрываем возможные перерисовки редактора)
+      ignoreChangesUntilTsRef.current = Date.now() + 2200
+      // до следующего пользовательского взаимодействия считаем форму «чистой»
+      suspendDirtyRef.current = true
+      // несколько последовательных фиксаций снимка формы, чтобы исключить ложные дельты
+      setTimeout(commitBaseline, 50)
+      setTimeout(commitBaseline, 600)
+      setTimeout(commitBaseline, 1300)
+      setTimeout(commitBaseline, 2100)
+      // мягко обновим серверные компоненты, чтобы форма получила свежие данные
+      try { router.refresh() } catch {}
     }
-  }, [pending, setInitialSnapshot])
+  }, [pending, commitBaseline, router])
 
   const disabled = useMemo(() => pending || !dirty, [pending, dirty])
 
