@@ -1,0 +1,31 @@
+# Google
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Yandex
+User-agent: Yandexbot
+Allow: /
+Crawl-delay: 1
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# All other bots
+User-agent: *
+Disallow: /admin/
+Disallow: /api/
+Disallow: /clients/login
+Disallow: /clients/signup
+Disallow: /clients/update-password
+Disallow: /auth/
+Allow: /
+
+# Sitemaps
+Sitemap: https://www.stepanov.website/sitemap.xml
+Sitemap: https://www.stepanov.website/feed.xml
+
+# Crawl delay for other bots
+Crawl-delay: 2

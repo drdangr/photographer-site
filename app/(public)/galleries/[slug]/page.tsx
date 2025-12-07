@@ -1,8 +1,31 @@
 import { supabase } from '@/lib/supabase'
 import ThumbGridWithLightbox from '@/components/ThumbGridWithLightbox'
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 
 type Props = { params: { slug: string } }
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { data: gallery } = await supabase
+    .from('Gallery')
+    .select('id, title, description, slug, coverUrl')
+    .eq('slug', params.slug)
+    .maybeSingle()
+
+  if (!gallery) return {}
+
+  return {
+    title: `${gallery.title} | Галерея | Степанов А.В.`,
+    description: gallery.description || `Галерея "${gallery.title}" от фотографа Алексея Степанова`,
+    openGraph: {
+      title: gallery.title,
+      description: gallery.description || `Галерея от фотографа`,
+      type: 'website',
+      url: `https://www.stepanov.website/galleries/${gallery.slug}`,
+      images: gallery.coverUrl ? [{ url: gallery.coverUrl }] : [],
+    },
+  }
+}
 
 export default async function GalleryPage({ params }: Props) {
   const locale = (await import('next/headers')).cookies().get('locale')?.value as 'ru' | 'uk' | 'en' | undefined

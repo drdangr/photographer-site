@@ -1,4 +1,16 @@
 import { supabase } from '@/lib/supabase'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Новости | Степанов А.В.',
+  description: 'Новости, события и обновления от фотографа и лектора Алексея Степанова',
+  openGraph: {
+    title: 'Новости | Степанов А.В.',
+    description: 'Новости, события и обновления от фотографа и лектора Алексея Степанова',
+    type: 'website',
+    url: 'https://www.stepanov.website/news',
+  },
+}
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0

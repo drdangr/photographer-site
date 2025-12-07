@@ -1,10 +1,30 @@
 import { supabase } from '@/lib/supabase'
+import type { Metadata } from 'next'
 
 type Props = { params: { slug: string } }
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-export const runtime = 'nodejs'
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { data: lecture } = await supabase
+    .from('Lecture')
+    .select('id,title,slug,coverUrl,description')
+    .eq('slug', decodeURIComponent(params.slug))
+    .eq('public', true)
+    .maybeSingle()
+
+  if (!lecture) return {}
+
+  return {
+    title: `${lecture.title} | Лекция | Степанов А.В.`,
+    description: lecture.description || `Лекция "${lecture.title}" от фотографа и лектора Алексея Степанова`,
+    openGraph: {
+      title: lecture.title,
+      description: lecture.description || `Лекция от фотографа`,
+      type: 'website',
+      url: `https://www.stepanov.website/lectures/${lecture.slug}`,
+      images: lecture.coverUrl ? [{ url: lecture.coverUrl }] : [],
+    },
+  }
+}
 
 export default async function LecturePage({ params }: Props) {
   const locale = (await import('next/headers')).cookies().get('locale')?.value as 'ru' | 'uk' | 'en' | undefined
