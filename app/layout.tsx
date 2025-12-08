@@ -12,11 +12,11 @@ import dictEn from '@/locales/en.json'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.stepanov.website'),
-  title: 'Степанов Геннадий | Фотограф | Лектор',
+  title: 'Степанов Алексей | Фотограф | Лектор',
   description: 'Профессиональный фотограф, преподаватель фотографии. Портретная, документальная и коммерческая фотография. Онлайн-лекции и курсы по фотографии.',
   keywords: 'фотография, фотограф, лекции, курсы фотографии, портретная фотография',
-  authors: [{ name: 'Геннадий Степанов' }],
-  creator: 'Геннадий Степанов',
+  authors: [{ name: 'Алексей Степанов' }],
+  creator: 'Алексей Степанов',
   robots: {
     index: true,
     follow: true,
@@ -32,13 +32,13 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'ru_RU',
     url: 'https://www.stepanov.website',
-    title: 'Степанов Геннадий | Фотограф | Лектор',
+    title: 'Степанов Алексей | Фотограф | Лектор',
     description: 'Профессиональный фотограф, преподаватель фотографии',
     siteName: 'stepanov.website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Степанов Геннадий | Фотограф | Лектор',
+    title: 'Степанов Алексей | Фотограф | Лектор',
     description: 'Профессиональный фотограф, преподаватель фотографии',
   },
   alternates: {
